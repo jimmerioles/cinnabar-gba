@@ -35,6 +35,23 @@ HLE.
 
 ## Quick start
 
+Cinnabar needs a stable Rust toolchain (1.85+) and the usual Linux window/audio
+development libraries. On Arch:
+
+```bash
+sudo pacman -S rustup alsa-lib wayland libxkbcommon
+rustup default stable
+```
+
+On Debian/Ubuntu:
+
+```bash
+sudo apt install build-essential pkg-config libasound2-dev \
+  libwayland-dev libxkbcommon-dev libx11-dev libxkbcommon-x11-dev
+```
+
+Then:
+
 ```bash
 cargo run -p cinnabar-frontend -- --demo
 ```
