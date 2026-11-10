@@ -38,6 +38,9 @@ const IRQ_STUB: [u8; 56] = [
     0x02, 0xF0, 0x5E, 0x12, 0x04, 0xF0, 0x5E, 0xE2,
 ];
 
+/// Number of CPU cycles accumulated before stepping timers, audio and video.
+const PERIPHERAL_BATCH_CYCLES: u32 = 32;
+
 pub struct Bus {
     pub bios: Vec<u8>,
     pub ewram: Vec<u8>,
@@ -58,6 +61,7 @@ pub struct Bus {
     pub wait_irq: Option<u16>,
     pub wait_vblank: bool,
     pub reset_requested: bool,
+    pending_cycles: u32,
     pub last_swi: u32,
 
     open_bus: u32,
@@ -88,6 +92,7 @@ impl Bus {
             wait_irq: None,
             wait_vblank: false,
             reset_requested: false,
+            pending_cycles: 0,
             last_swi: 0,
             open_bus: 0,
             dma_active: false,
@@ -103,7 +108,21 @@ impl Bus {
         }
     }
 
+    /// Advance peripherals by one CPU instruction's cycles. Work is batched in
+    /// small chunks: the CPU interpreter is fast, but calling four peripheral
+    /// stepping functions for every instruction is not. 32 cycles is well below
+    /// a scanline and keeps timer/IRQ latency imperceptible.
+    #[inline]
     pub fn step(&mut self, cycles: u32) {
+        self.pending_cycles += cycles;
+        if self.pending_cycles < PERIPHERAL_BATCH_CYCLES {
+            return;
+        }
+        self.step_now();
+    }
+
+    fn step_now(&mut self) {
+        let cycles = std::mem::take(&mut self.pending_cycles);
         self.timers.step(cycles, &mut self.irq);
         self.apu.step(cycles);
         self.service_audio_dma();

@@ -314,6 +314,45 @@ The demo ROMs are hand-written ARM assembly:
 
 Source lives in `crates/cinnabar-testrom/roms/`.
 
+## Performance
+
+Cinnabar is headless-first, and the core is fast. On this machine, a 300-frame
+Celeste Classic gameplay run (A held to start) finishes in about 0.66 seconds,
+or ~455 fps:
+
+```text
+frames=300 elapsed=0.659s fps=455.0
+```
+
+The frontend is paced at the GBA's 59.7275 Hz, so it has roughly 7–8× headroom.
+The release profile uses fat LTO, one codegen unit, and abort panics.
+
+Benchmark it yourself:
+
+```bash
+./tools/fetch-celeste.sh
+make bench
+```
+
+Or directly:
+
+```bash
+cargo run --release -p cinnabar-core --example bench -- \
+  test-roms/homebrew/celeste.gba 300 1
+```
+
+The trailing `1` is the keypad mask for A, which starts the game. Omit it for a
+title-screen benchmark. Numbers vary by machine; for local maximum performance,
+try `RUSTFLAGS="-C target-cpu=native" make bench`.
+
+The main optimizations are:
+
+- A per-scanline sprite cache instead of scanning all 128 OAM entries per pixel.
+- 32-cycle peripheral batching instead of four function calls per CPU
+  instruction.
+- Fat LTO and `codegen-units = 1`.
+- A headless core with no windowing or audio dependencies.
+
 ## Development
 
 ```bash
@@ -331,6 +370,7 @@ make validate
 make selftest
 make input
 make celeste
+make bench
 make demo
 ```
 

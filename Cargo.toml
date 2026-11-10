@@ -25,9 +25,10 @@ softbuffer = "0.4"
 winit = "0.30"
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 panic = "abort"
+strip = "symbols"
 
 [profile.dev]
 opt-level = 1

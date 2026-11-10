@@ -386,6 +386,7 @@ impl Cpu {
 
     /// Fetch, decode, and execute one instruction. Returns the number of
     /// cycles consumed.
+    #[inline]
     pub fn step<M: Memory>(&mut self, bus: &mut M) -> u32 {
         self.cycles = 1;
         if self.thumb() {

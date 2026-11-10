@@ -1,4 +1,4 @@
-.PHONY: build run demo selftest builtins input celeste test lint fmt validate roms demo-rom clean
+.PHONY: build run demo selftest builtins input celeste bench test lint fmt validate roms demo-rom clean
 
 CARGO ?= cargo
 ROM ?=
@@ -24,6 +24,9 @@ input:
 celeste:
 	./tools/fetch-celeste.sh
 	$(CARGO) run -p cinnabar-frontend -- test-roms/homebrew/celeste.gba
+
+bench:
+	$(CARGO) run --release -p cinnabar-core --example bench -- $(if $(ROM),$(ROM),test-roms/homebrew/celeste.gba) 300 1
 
 test:
 	$(CARGO) test --workspace
