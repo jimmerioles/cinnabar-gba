@@ -22,13 +22,21 @@ bug after this point.
 
 ## v0.3 — Compatibility depth
 
-- EEPROM saves (512 B and 8 KB, bit-banged protocol).
-- Flash command edge cases, save-type detection refinements.
-- PPU timing: dot-level effects, HBlank timing, mosaic rendering.
-- Sprite affine/double-size edge cases, OBJ window, priority/blending quirks.
-- Audio DMA refills driven by timer overflows, SOUNDBIAS/PWM, better mixing.
-- Per-game compatibility checklist and automated boot smoke tests.
-- Run a legally dumped game for an hour without a regression.
+- [x] EEPROM saves (512 B and 8 KB, bit-banged protocol, runtime size detection).
+- [x] Flash command edge cases (ID mode, bank switching, sector erase) and
+  save-type detection refinements.
+- [x] HBlank timing and mosaic rendering.
+- [ ] Dot-level PPU effects (still scanline-based).
+- [x] Sprite affine/double-size handling, OBJ window, window flag selection.
+- [x] Audio DMA refills driven by timer overflows and SOUNDBIAS resolution
+  quantization.
+- [ ] Exact SOUNDBIAS PWM output and more advanced mixing.
+- [x] Per-game compatibility checklist and automated boot smoke tests.
+- [ ] One-hour commercial-ROM soak (manual check via `./tools/soak.sh`).
+
+v0.3 is a compatibility-depth pass, not a claim of cycle accuracy. Dot-level
+PPU effects, exact PWM output, and a commercial-library soak remain documented
+follow-ups.
 
 ## v0.4 — Frontend polish
 

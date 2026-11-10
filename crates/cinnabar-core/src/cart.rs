@@ -180,4 +180,12 @@ mod tests {
         let cart = Cartridge::new(rom);
         assert_eq!(cart.save_type, SaveType::Sram);
     }
+
+    #[test]
+    fn detects_eeprom() {
+        let mut rom = header_rom();
+        rom[0x200..0x208].copy_from_slice(b"EEPROM_V");
+        let cart = Cartridge::new(rom);
+        assert_eq!(cart.save_type, SaveType::Eeprom8K);
+    }
 }

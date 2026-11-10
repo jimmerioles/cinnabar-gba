@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml"><img src="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-FF3B2F" alt="Release v0.1.0"></a>
+  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-FF3B2F" alt="Release v0.3.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
@@ -306,7 +306,11 @@ The emulator is checked against the open-source
 
 ```bash
 ./tools/validate.sh
+./tools/smoke.sh
 ```
+
+See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) for the full coverage
+matrix, per-game checklist, and soak-test instructions.
 
 ```text
 PASS arm                r12=00000000
@@ -338,7 +342,9 @@ all selected validations passed
 | Keypad test screen | **PASS** (integration test + `--builtin input`) |
 | Celeste Classic title + gameplay | **PASS** (optional real-game smoke test) |
 | BIOS internals | Not applicable: Cinnabar GBA uses HLE instead of a real BIOS |
-| EEPROM saves | Not implemented |
+| EEPROM 512 B / 8 KB | **PASS** (bit-banged protocol + runtime size detection) |
+| Flash ID mode / bank switching | **PASS** (unit tests) |
+| Mosaic, OBJ window, affine sprites | **PASS** (unit tests) |
 | `unsafe` suite | Test 2 is documented upstream as failing on real hardware; it is not part of our validation |
 
 The workspace test suite covers CPU decoding, flags, exceptions, PPU mode 3, APU
@@ -435,6 +441,7 @@ make input
 make celeste
 make bench
 make debug
+make smoke
 make demo
 ```
 
@@ -446,10 +453,11 @@ The honest compatibility picture:
 **Working**
 
 - ARM and Thumb instruction sets, banked registers, mode changes, exceptions.
-- Memory map, mirrors, cartridge ROM access, SRAM/Flash saves.
-- PPU modes 0–5, text/affine backgrounds, sprites, windows, alpha and brightness
-  effects.
-- PSG channels, DMA sound, frame sequencer, stereo mixer.
+- Memory map, mirrors, cartridge ROM access, SRAM/Flash/EEPROM saves.
+- PPU modes 0–5, text/affine backgrounds, sprites, windows, OBJ windows, mosaic,
+  alpha and brightness effects.
+- PSG channels, DMA sound, timer-clocked FIFOs, SOUNDBIAS resolution, stereo
+  mixer.
 - DMA, timers, IRQ controller, keypad, BIOS HLE including `Halt` and
   `VBlankIntrWait`.
 - Windowed frontend, audio, headless screenshots, save persistence.
@@ -458,10 +466,11 @@ The honest compatibility picture:
 
 - BIOS internals are HLE, not a cycle-accurate BIOS. The `bios` test ROM is not
   supported by design.
-- EEPROM saves are not implemented yet.
 - Sound DMA refill timing is approximated; the FIFO itself is clocked by Timer
-  0/1. High square/noise frequencies alias at 48 kHz.
-- Mosaic and a few PPU edge cases are register-complete but not fully rendered.
+  0/1. SOUNDBIAS resolution is modelled, but the exact PWM output stage is not.
+  High square/noise frequencies alias at 48 kHz.
+- PPU timing is scanline-based. Dot-level effects and exact HBlank timing are
+  still approximate, although mosaic, OBJ windows, and affine sprites render.
 - No graphical debugger panels, link cable, netplay, or shaders yet. Save
   states, rewind, and text-mode PPU viewers are available in the headless
   debugger.

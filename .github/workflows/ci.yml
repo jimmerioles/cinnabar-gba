@@ -27,6 +27,8 @@ jobs:
         run: cargo test --workspace
       - name: Build
         run: cargo build --workspace
+      - name: Boot smoke tests
+        run: ./tools/smoke.sh
 
   gba-tests:
     name: gba-tests validation

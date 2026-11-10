@@ -631,7 +631,8 @@ impl DmaSound {
 /// The audio processing unit.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Apu {
-    regs: Vec<u8>,
+    #[serde(with = "regs_serde")]
+    regs: [u8; REG_COUNT],
     wave_ram: [[u8; 16]; 2],
     sample_rate: u32,
     samples: Vec<f32>,
@@ -658,7 +659,7 @@ impl Apu {
     pub fn new() -> Self {
         Self {
             regs: {
-                let mut regs = vec![0; REG_COUNT];
+                let mut regs = [0; REG_COUNT];
                 regs[REG_SOUNDBIAS..REG_SOUNDBIAS + 2]
                     .copy_from_slice(&SOUNDBIAS_RESET.to_le_bytes());
                 regs
@@ -1012,7 +1013,24 @@ impl Apu {
         let left = (psg_left * psg_volume * volume_left * 0.25 + dma_left * 0.5).clamp(-1.0, 1.0);
         let right =
             (psg_right * psg_volume * volume_right * 0.25 + dma_right * 0.5).clamp(-1.0, 1.0);
-        (left, right)
+
+        // SOUNDBIAS selects the DAC's 9-bit or 8-bit amplitude resolution.
+        // The exact PWM stage is not modelled, but quantizing the output
+        // captures the audible step size.
+        let resolution = (self.regs[REG_SOUNDBIAS + 1] >> 6) & 3;
+        let step = if resolution == 0 {
+            1.0 / 256.0
+        } else {
+            1.0 / 128.0
+        };
+        (
+            Self::quantize_sample(left, step),
+            Self::quantize_sample(right, step),
+        )
+    }
+
+    fn quantize_sample(sample: f32, step: f32) -> f32 {
+        ((sample / step).round() * step).clamp(-1.0, 1.0)
     }
 
     fn soundcnt_h(&self) -> u16 {
@@ -1080,6 +1098,33 @@ impl Apu {
         self.regs[REG_SOUNDCNT_X] = 0;
         self.frame_sequencer_counter = 0;
         self.frame_sequencer_step = 0;
+    }
+}
+
+mod regs_serde {
+    use serde::de::Error;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    use super::REG_COUNT;
+
+    pub fn serialize<S>(value: &[u8; REG_COUNT], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_slice().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<[u8; REG_COUNT], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = Vec::<u8>::deserialize(deserializer)?;
+        if bytes.len() != REG_COUNT {
+            return Err(D::Error::custom("invalid APU register snapshot"));
+        }
+        let mut value = [0u8; REG_COUNT];
+        value.copy_from_slice(&bytes);
+        Ok(value)
     }
 }
 
@@ -1348,6 +1393,13 @@ mod tests {
             peak(&samples) > 0.1,
             "timer-clocked sample should be audible"
         );
+    }
+
+    #[test]
+    fn soundbias_quantization_steps() {
+        assert_eq!(Apu::quantize_sample(0.5, 1.0 / 256.0), 0.5);
+        let quantized = Apu::quantize_sample(0.1234, 1.0 / 128.0);
+        assert!((quantized * 128.0).round() / 128.0 == quantized);
     }
 
     #[test]

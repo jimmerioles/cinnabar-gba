@@ -216,6 +216,12 @@ impl Bus {
 
         self.dma_active = true;
         let count = channel.count_value(index);
+        if index == 3
+            && self.save.is_eeprom()
+            && ((channel.src >> 24 == 0x0D) || (channel.dst >> 24 == 0x0D))
+        {
+            self.save.eeprom_set_dma_length(count);
+        }
         let word = channel.word_size();
         let mut src = channel.src;
         let mut dst = channel.dst;
@@ -352,6 +358,7 @@ impl Memory for Bus {
             0x05 => self.ppu.read_palette8(addr),
             0x06 => self.ppu.read_vram8(addr),
             0x07 => self.ppu.read_oam8(addr),
+            0x0D if self.save.is_eeprom() => self.save.eeprom_read_bit(),
             0x08..=0x0D => self.cart.read8(addr),
             0x0E | 0x0F => self.save.read8(addr),
             _ => (self.open_bus >> ((addr & 3) * 8)) as u8,
@@ -369,6 +376,7 @@ impl Memory for Bus {
             0x05 => self.ppu.read_palette16(addr),
             0x06 => self.ppu.read_vram16(addr),
             0x07 => self.ppu.read_oam16(addr),
+            0x0D if self.save.is_eeprom() => u16::from(self.save.eeprom_read_bit()),
             0x08..=0x0D => self.cart.read16(addr),
             0x0E | 0x0F => self.save.read16(addr),
             _ => self.open_bus as u16,
@@ -389,6 +397,7 @@ impl Memory for Bus {
             }
             0x06 => self.ppu.read_vram32(addr),
             0x07 => self.ppu.read_oam32(addr),
+            0x0D if self.save.is_eeprom() => u32::from(self.save.eeprom_read_bit()),
             0x08..=0x0D => self.cart.read32(addr),
             0x0E | 0x0F => self.save.read32(addr),
             _ => self.open_bus,
@@ -406,6 +415,7 @@ impl Memory for Bus {
             0x05 => self.ppu.write_palette8(addr, value),
             0x06 => self.ppu.write_vram8(addr, value),
             0x07 => self.ppu.write_oam8(addr, value),
+            0x0D if self.save.is_eeprom() => self.save.eeprom_write_bit(value & 1 != 0),
             0x08..=0x0D => {}
             0x0E | 0x0F => self.save.write8(addr, value),
             _ => {}
@@ -421,6 +431,7 @@ impl Memory for Bus {
             0x05 => self.ppu.write_palette16(addr & !1, value),
             0x06 => self.ppu.write_vram16(addr & !1, value),
             0x07 => self.ppu.write_oam16(addr & !1, value),
+            0x0D if self.save.is_eeprom() => self.save.eeprom_write_bit(value & 1 != 0),
             0x08..=0x0D => {}
             // Save media is an 8-bit bus; preserve the byte lane.
             0x0E | 0x0F => self.save.write16(addr, value),
@@ -437,6 +448,7 @@ impl Memory for Bus {
             0x05 => self.ppu.write_palette32(addr & !3, value),
             0x06 => self.ppu.write_vram32(addr & !3, value),
             0x07 => self.ppu.write_oam32(addr & !3, value),
+            0x0D if self.save.is_eeprom() => self.save.eeprom_write_bit(value & 1 != 0),
             0x08..=0x0D => {}
             0x0E | 0x0F => self.save.write32(addr, value),
             _ => {}
@@ -559,6 +571,7 @@ impl Bus {
             0x05 => self.ppu.read_palette16(addr),
             0x06 => self.ppu.read_vram16(addr),
             0x07 => self.ppu.read_oam16(addr),
+            0x0D if self.save.is_eeprom() => 1,
             0x08..=0x0D => self.cart.read16(addr),
             0x0E | 0x0F => {
                 let byte = self.save.peek8(addr);
@@ -584,6 +597,7 @@ impl Bus {
             }
             0x06 => self.ppu.read_vram32(addr),
             0x07 => self.ppu.read_oam32(addr),
+            0x0D if self.save.is_eeprom() => 1,
             0x08..=0x0D => self.cart.read32(addr),
             0x0E | 0x0F => {
                 let byte = u32::from(self.save.peek8(addr));

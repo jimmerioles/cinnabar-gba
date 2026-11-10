@@ -1,4 +1,4 @@
-.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate roms demo-rom clean
+.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate smoke soak roms demo-rom clean
 
 CARGO ?= cargo
 ROM ?=
@@ -14,6 +14,12 @@ demo:
 
 debug:
 	$(CARGO) run -p cinnabar-frontend -- $(if $(ROM),$(ROM),--demo) --debug
+
+smoke:
+	./tools/smoke.sh
+
+soak:
+	./tools/soak.sh $(ROM)
 
 selftest:
 	$(CARGO) run -p cinnabar-frontend -- --selftest

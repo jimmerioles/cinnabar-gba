@@ -1,8 +1,9 @@
 # GBA Emulator in Rust — Build Plan
 
 **Working name:** Cinnabar GBA
-**Status:** v0.1 implemented. See [`README.md`](README.md) for the current
-feature set, validation results, and quick start.
+**Status:** v0.3 implemented. See [`README.md`](README.md) and
+[`ROADMAP.md`](ROADMAP.md) for the current feature set, validation results, and
+remaining accuracy work.
 **Goal:** a legally dumped GBA game boots, runs at full speed with audio, saves persist, and a debugger makes it pleasant to fix bugs.
 
 **Not the goal:** cycle-perfect emulation, link cable, netplay, or a shader stack. Compatibility first, accuracy where it matters.
@@ -431,37 +432,36 @@ A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have
 
 - [ ] A legally dumped commercial game boots and plays at full speed.
 - [ ] Audio works: music and SFX at the right pitch and speed.
-- [ ] Saves persist across restarts (SRAM/Flash/EEPROM).
-- [ ] Save states work across runs.
-- [ ] `armwrestler`, `FuzzARM`, and most of `gba-tests` pass.
+- [x] Saves persist across restarts (SRAM/Flash/EEPROM).
+- [ ] Save states work across runs (in-memory slots and rewind are implemented).
+- [ ] `armwrestler`, `FuzzARM`, and most of `gba-tests` pass (`gba-tests` does).
 - [ ] A meaningful slice of `mgba-emu/suite` passes.
 - [ ] Stable 59.73 fps with no audio crackling.
 - [ ] Input latency under two frames.
-- [ ] Debugger is usable for CPU and PPU bugs.
-- [ ] No copyrighted ROMs or BIOS in the repo.
+- [x] Debugger is usable for CPU and PPU bugs.
+- [x] No copyrighted ROMs or BIOS in the repo.
 - [ ] A demo video that makes people say "you wrote that?"
 
 ---
 
-## Immediate next steps
+## Current status and next work
 
-1. Install Rust (this machine has no `rustc` yet):
+v0.2 and v0.3 are implemented: the headless debugger has save states, rewind,
+memory editing, and PPU viewers; EEPROM/Flash handling, mosaic, OBJ windows,
+HBlank timing, and timer-clocked audio are in place. The next milestone is
+v0.4 frontend polish (gamepad support, library, shaders, config, WASM).
 
-   ```bash
-   sudo pacman -S rustup
-   rustup default stable
-   ```
+Run the validation and smoke suites:
 
-   Or the official installer:
+```bash
+./tools/validate.sh
+./tools/smoke.sh
+```
 
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+Use `./tools/soak.sh <rom.gba> 216000` for a manual one-hour emulated soak.
 
-2. Scaffold the workspace and make Commit 1.
-3. Download the test ROMs and one open-source homebrew ROM. Do not start with a commercial ROM.
-4. Get color bars on screen at 60 fps.
-5. Start the CPU. Everything else follows.
+Remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md): dot-level PPU
+effects, exact SOUNDBIAS PWM, and a commercial-game soak.
 
 ---
 

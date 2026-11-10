@@ -214,9 +214,14 @@ impl Ppu {
         } else {
             [None; SCREEN_WIDTH]
         };
+        let obj_window: [bool; SCREEN_WIDTH] = if self.dispcnt & 0x8000 != 0 {
+            self.obj_window_line(y as usize)
+        } else {
+            [false; SCREEN_WIDTH]
+        };
 
         for x in 0..SCREEN_WIDTH {
-            let window = self.window_mask(x, y as usize);
+            let window = self.window_mask(x, y as usize, obj_window[x]);
             let mut best: Option<Candidate> = None;
             let mut second: Option<Candidate> = None;
 
@@ -307,11 +312,18 @@ impl Ppu {
         let size = (cnt >> 14) & 3;
         let width_tiles = if size & 1 != 0 { 64 } else { 32 };
         let height_tiles = if size & 2 != 0 { 64 } else { 32 };
+        let (mosaic_x, mosaic_y) = if cnt & 0x40 != 0 {
+            mosaic_dimensions(self.mosaic)
+        } else {
+            (1, 1)
+        };
+        let sample_x = mosaic_coord(x, mosaic_x);
+        let sample_y = mosaic_coord(y, mosaic_y);
         let width = width_tiles * 8;
         let height = height_tiles * 8;
 
-        let sx = (x + self.bghofs[layer] as usize) % width;
-        let sy = (y + self.bgvofs[layer] as usize) % height;
+        let sx = (sample_x + self.bghofs[layer] as usize) % width;
+        let sy = (sample_y + self.bgvofs[layer] as usize) % height;
         let map_x = sx / 8;
         let map_y = sy / 8;
 
@@ -482,6 +494,11 @@ impl Ppu {
                 (0, 0, 0, 0)
             };
 
+            let (mosaic_x, mosaic_y) = if attr0 & 0x1000 != 0 {
+                object_mosaic_dimensions(self.mosaic)
+            } else {
+                (1, 1)
+            };
             let tile = (attr2 & 0x3FF) as usize;
             let one_d = self.dispcnt & 0x0040 != 0;
             let eight_bpp = attr0 & 0x2000 != 0;
@@ -491,8 +508,10 @@ impl Ppu {
 
             for x in x_start..x_end {
                 let (tx, ty) = if affine {
-                    let dx = x as i32 - (sx + bw as i32 / 2);
-                    let dy = y as i32 - (sy + bh as i32 / 2);
+                    let sample_x = mosaic_coord(x, mosaic_x);
+                    let sample_y = mosaic_coord(y, mosaic_y);
+                    let dx = sample_x as i32 - (sx + bw as i32 / 2);
+                    let dy = sample_y as i32 - (sy + bh as i32 / 2);
                     let tx = ((pa * dx + pb * dy) >> 8) + w as i32 / 2;
                     let ty = ((pc * dx + pd * dy) >> 8) + h as i32 / 2;
                     if tx < 0 || ty < 0 || tx >= w as i32 || ty >= h as i32 {
@@ -500,8 +519,14 @@ impl Ppu {
                     }
                     (tx as usize, ty as usize)
                 } else {
-                    let mut tx = x as i32 - sx;
-                    let mut ty = y as i32 - sy;
+                    let sample_x = mosaic_coord(x, mosaic_x)
+                        .max(sx as usize)
+                        .min((sx + w as i32 - 1) as usize);
+                    let sample_y = mosaic_coord(y, mosaic_y)
+                        .max(sy as usize)
+                        .min((sy + h as i32 - 1) as usize);
+                    let mut tx = sample_x as i32 - sx;
+                    let mut ty = sample_y as i32 - sy;
                     if attr1 & 0x1000 != 0 {
                         tx = w as i32 - 1 - tx;
                     }
@@ -552,20 +577,130 @@ impl Ppu {
         line
     }
 
-    fn window_mask(&self, x: usize, y: usize) -> u16 {
-        let windows_enabled = self.dispcnt & 0xE000 != 0;
-        let mut mask = if windows_enabled {
-            self.winout & 0x3F
-        } else {
-            0x3F
-        };
+    fn window_mask(&self, x: usize, y: usize, obj_window: bool) -> u16 {
+        if self.dispcnt & 0xE000 == 0 {
+            return 0x3F;
+        }
 
         let in_win0 = self.dispcnt & 0x2000 != 0 && self.in_window(self.win0h, self.win0v, x, y);
-        let in_win1 = self.dispcnt & 0x4000 != 0 && self.in_window(self.win1h, self.win1v, x, y);
-        if in_win0 || in_win1 {
-            mask = self.winin & 0x3F;
+        if in_win0 {
+            return self.winin & 0x3F;
         }
-        mask
+        let in_win1 = self.dispcnt & 0x4000 != 0 && self.in_window(self.win1h, self.win1v, x, y);
+        if in_win1 {
+            return (self.winin >> 8) & 0x3F;
+        }
+        if self.dispcnt & 0x8000 != 0 && obj_window {
+            return (self.winout >> 8) & 0x3F;
+        }
+        self.winout & 0x3F
+    }
+
+    #[allow(clippy::needless_range_loop)] // x drives the sprite texture
+    fn obj_window_line(&self, y: usize) -> [bool; SCREEN_WIDTH] {
+        let mut line = [false; SCREEN_WIDTH];
+
+        for index in 0..128 {
+            let base = index * 8;
+            let attr0 = self.oam16(base);
+            let attr1 = self.oam16(base + 2);
+            let attr2 = self.oam16(base + 4);
+
+            if (attr0 >> 10) & 3 != 2 {
+                continue;
+            }
+            let affine = attr0 & 0x0100 != 0;
+            let shape = (attr0 >> 14) & 3;
+            let size = (attr1 >> 14) & 3;
+            let Some((w, h)) = sprite_size(shape, size) else {
+                continue;
+            };
+            let sx = (attr1 & 0x1FF) as i32;
+            let sy = (attr0 & 0xFF) as i32;
+            let double_size = affine && attr0 & 0x0200 != 0;
+            let bw = if double_size { w * 2 } else { w };
+            let bh = if double_size { h * 2 } else { h };
+            if (y as i32) < sy || (y as i32) >= sy + bh as i32 {
+                continue;
+            }
+            let x_start = sx.clamp(0, SCREEN_WIDTH as i32) as usize;
+            let x_end = (sx + bw as i32).clamp(0, SCREEN_WIDTH as i32) as usize;
+            if x_start >= x_end {
+                continue;
+            }
+
+            let (pa, pb, pc, pd) = if affine {
+                let affine_index = ((attr1 >> 9) & 0x1F) as usize;
+                let param = affine_index * 32 + 6;
+                (
+                    self.oam_i16(param) as i32,
+                    self.oam_i16(param + 8) as i32,
+                    self.oam_i16(param + 16) as i32,
+                    self.oam_i16(param + 24) as i32,
+                )
+            } else {
+                (0, 0, 0, 0)
+            };
+
+            let (mosaic_x, mosaic_y) = if attr0 & 0x1000 != 0 {
+                object_mosaic_dimensions(self.mosaic)
+            } else {
+                (1, 1)
+            };
+            let tile = (attr2 & 0x3FF) as usize;
+            let one_d = self.dispcnt & 0x0040 != 0;
+            let eight_bpp = attr0 & 0x2000 != 0;
+
+            for x in x_start..x_end {
+                let (tx, ty) = if affine {
+                    let sample_x = mosaic_coord(x, mosaic_x);
+                    let sample_y = mosaic_coord(y, mosaic_y);
+                    let dx = sample_x as i32 - (sx + bw as i32 / 2);
+                    let dy = sample_y as i32 - (sy + bh as i32 / 2);
+                    let tx = ((pa * dx + pb * dy) >> 8) + w as i32 / 2;
+                    let ty = ((pc * dx + pd * dy) >> 8) + h as i32 / 2;
+                    if tx < 0 || ty < 0 || tx >= w as i32 || ty >= h as i32 {
+                        continue;
+                    }
+                    (tx as usize, ty as usize)
+                } else {
+                    let sample_x = mosaic_coord(x, mosaic_x)
+                        .max(sx as usize)
+                        .min((sx + w as i32 - 1) as usize);
+                    let sample_y = mosaic_coord(y, mosaic_y)
+                        .max(sy as usize)
+                        .min((sy + h as i32 - 1) as usize);
+                    let mut tx = sample_x as i32 - sx;
+                    let mut ty = sample_y as i32 - sy;
+                    if attr1 & 0x1000 != 0 {
+                        tx = w as i32 - 1 - tx;
+                    }
+                    if attr1 & 0x2000 != 0 {
+                        ty = h as i32 - 1 - ty;
+                    }
+                    (tx as usize, ty as usize)
+                };
+
+                let tile_x = tx / 8;
+                let tile_y = ty / 8;
+                let tile_num = if one_d {
+                    tile + tile_y * (w / 8) + tile_x
+                } else {
+                    tile + tile_y * 32 + tile_x
+                };
+                let color_index = if eight_bpp {
+                    self.vram8(0x1_0000 + tile_num * 64 + (ty % 8) * 8 + (tx % 8)) as usize
+                } else {
+                    let byte = self.vram8(0x1_0000 + tile_num * 32 + (ty % 8) * 4 + (tx % 8) / 2);
+                    ((byte >> (((tx % 8) & 1) * 4)) & 0xF) as usize
+                };
+                if color_index != 0 {
+                    line[x] = true;
+                }
+            }
+        }
+
+        line
     }
 
     fn in_window(&self, h: u16, v: u16, x: usize, y: usize) -> bool {
@@ -866,6 +1001,28 @@ fn insert_candidate(
     }
 }
 
+fn mosaic_coord(value: usize, size: usize) -> usize {
+    if size <= 1 {
+        value
+    } else {
+        value - value % size
+    }
+}
+
+fn mosaic_dimensions(value: u16) -> (usize, usize) {
+    (
+        usize::from(value & 0xF) + 1,
+        usize::from((value >> 4) & 0xF) + 1,
+    )
+}
+
+fn object_mosaic_dimensions(value: u16) -> (usize, usize) {
+    (
+        usize::from((value >> 8) & 0xF) + 1,
+        usize::from((value >> 12) & 0xF) + 1,
+    )
+}
+
 fn sprite_size(shape: u16, size: u16) -> Option<(usize, usize)> {
     Some(match (shape, size) {
         (0, 0) => (8, 8),
@@ -919,6 +1076,97 @@ fn sign_extend_28(value: u32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bg_mosaic_snaps_to_the_block_top_left() {
+        let mut ppu = Ppu::new();
+        ppu.dispcnt = 0x0100;
+        ppu.bgcnt[0] = (1 << 2) | (1 << 8) | 0x40;
+        ppu.mosaic = 0x0003;
+        ppu.write_palette16(0x0500_0002, 0x001F);
+        ppu.write_palette16(0x0500_0004, 0x03E0);
+        ppu.write_vram16(0x0800, 0);
+        for (index, byte) in [0x11u8, 0x11, 0x22, 0x22].iter().enumerate() {
+            ppu.write_vram8(0x4000 + index as u32, *byte);
+        }
+
+        ppu.render_line(0);
+        assert_eq!(ppu.framebuffer[0], 0x001F);
+        assert_eq!(ppu.framebuffer[1], 0x001F);
+        assert_eq!(ppu.framebuffer[2], 0x001F);
+        assert_eq!(ppu.framebuffer[3], 0x001F);
+        assert_eq!(ppu.framebuffer[4], 0x03E0);
+        assert_eq!(ppu.framebuffer[5], 0x03E0);
+        assert_eq!(ppu.framebuffer[6], 0x03E0);
+        assert_eq!(ppu.framebuffer[7], 0x03E0);
+    }
+
+    #[test]
+    fn scanline_stepping_raises_hblank_and_vblank() {
+        let mut ppu = Ppu::new();
+        ppu.dispstat = 0x0018;
+        let mut irq = Irq::default();
+
+        let events = ppu.step(CYCLES_PER_SCANLINE, &mut irq);
+        assert!(events.hblank);
+        assert_ne!(irq.if_ & irq::bits::HBLANK, 0);
+        assert_eq!(ppu.vcount, 1);
+
+        for _ in 1..VISIBLE_SCANLINES {
+            ppu.step(CYCLES_PER_SCANLINE, &mut irq);
+        }
+        assert_eq!(ppu.vcount, VISIBLE_SCANLINES);
+        assert_ne!(irq.if_ & irq::bits::VBLANK, 0);
+    }
+
+    #[test]
+    fn vcount_match_irq_fires() {
+        let mut ppu = Ppu::new();
+        ppu.dispstat = (5 << 8) | 0x0020;
+        let mut irq = Irq::default();
+        for _ in 0..5 {
+            ppu.step(CYCLES_PER_SCANLINE, &mut irq);
+        }
+        assert_ne!(irq.if_ & irq::bits::VCOUNT, 0);
+    }
+
+    #[test]
+    fn windows_use_separate_win0_win1_and_obj_flags() {
+        let mut ppu = Ppu::new();
+        ppu.dispcnt = 0x6000;
+        ppu.win0h = 8 << 8;
+        ppu.win0v = 160 << 8;
+        ppu.win1h = (20 << 8) | 10;
+        ppu.win1v = 160 << 8;
+        ppu.winin = 0x0001 | (0x0002 << 8);
+        ppu.winout = 0x3F;
+
+        assert_eq!(ppu.window_mask(2, 0, false), 0x0001);
+        assert_eq!(ppu.window_mask(12, 0, false), 0x0002);
+        assert_eq!(ppu.window_mask(30, 0, false), 0x3F);
+
+        ppu.dispcnt = 0x8000;
+        ppu.winout = 0x3F << 8;
+        assert_eq!(ppu.window_mask(0, 0, true), 0x3F);
+        assert_eq!(ppu.window_mask(0, 0, false), 0x0000);
+    }
+
+    #[test]
+    fn obj_window_line_marks_only_opaque_sprite_pixels() {
+        let mut ppu = Ppu::new();
+        ppu.dispcnt = 0x9000;
+        ppu.write_oam16(0, 0x0800);
+        ppu.write_oam16(2, 8);
+        ppu.write_oam16(4, 0);
+        for offset in 0..4 {
+            ppu.write_vram8(0x1_0000 + offset, 0xFF);
+        }
+
+        let line = ppu.obj_window_line(0);
+        assert!(line[8]);
+        assert!(line[15]);
+        assert!(!line[16]);
+    }
 
     #[test]
     fn mode3_renders_every_pixel() {
