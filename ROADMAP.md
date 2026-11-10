@@ -1,4 +1,4 @@
-# Cinnabar Roadmap
+# Cinnabar GBA Roadmap
 
 Cinnabar's core is validated against the open-source `gba-tests` CPU, memory,
 and save suites. The next work is about compatibility depth, developer tools,
