@@ -383,16 +383,15 @@ Build these in order after the first game boots:
 - [x] Disassembly around PC
 - [x] Breakpoints, step, step-frame
 - [x] Headless debugger CLI
-- [x] Memory hex viewer
-- [ ] Memory editor
-- [ ] Tile viewer
-- [ ] Palette viewer
-- [ ] Background map viewer
-- [ ] OAM / sprite viewer
-- [ ] Layer toggles
+- [x] Memory hex viewer and editor
+- [x] Tile viewer (terminal)
+- [x] Palette viewer
+- [x] Background map viewer (register view)
+- [x] OAM / sprite viewer
+- [x] Layer toggles
 - [x] PPU, DMA, timer, and IRQ state
-- [ ] Save-state slots
-- [ ] Rewind buffer
+- [x] Save-state slots
+- [x] Rewind buffer
 
 A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have bugs worth debugging.
 

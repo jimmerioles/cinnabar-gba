@@ -14,10 +14,12 @@ pub mod irq;
 pub mod keypad;
 pub mod ppu;
 pub mod save;
+pub mod save_state;
 pub mod system;
 pub mod timer;
 
 pub use cart::{Cartridge, SaveType};
+pub use save_state::{SAVE_STATE_VERSION, SaveStateError};
 pub use system::{FrameOutput, System};
 
 /// Width of the GBA LCD in pixels.

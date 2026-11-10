@@ -8,9 +8,11 @@
 //! unlock (AA/55), program (A0), chip erase (80/10), sector erase (80/30)
 //! and 128 KiB bank select (B0).
 
+use serde::{Deserialize, Serialize};
+
 use crate::cart::SaveType;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum FlashState {
     Read,
     Unlock1,
@@ -22,7 +24,7 @@ enum FlashState {
     EraseUnlock3,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SaveMedia {
     pub kind: SaveType,
     pub data: Vec<u8>,

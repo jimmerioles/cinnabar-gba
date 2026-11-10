@@ -5,6 +5,8 @@
 //! the architectural pipeline bias (+4 in ARM, +2 in Thumb). This keeps the
 //! implementation honest without modelling the prefetch buffer.
 
+use serde::{Deserialize, Serialize};
+
 mod arm;
 mod thumb;
 
@@ -19,7 +21,7 @@ pub const FLAG_F: u32 = 1 << 6;
 pub const FLAG_T: u32 = 1 << 5;
 
 /// CPU modes, with their CPSR mode-bit encodings.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mode {
     User = 0x10,
     Fiq = 0x11,
@@ -57,7 +59,7 @@ impl Mode {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 struct Banks {
     r13: [u32; 6],
     r14: [u32; 6],
@@ -69,7 +71,7 @@ struct Banks {
 }
 
 /// ARM7TDMI register state.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Cpu {
     pub(crate) r: [u32; 16],
     pub(crate) cpsr: u32,

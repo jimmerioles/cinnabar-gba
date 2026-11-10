@@ -43,7 +43,8 @@ HLE.
 - **Headless mode** for CI and screenshots: no window, no audio device, just
   frames in and a PNG out.
 - **Headless debugger** with ARM/Thumb disassembly, breakpoints, instruction and
-  frame stepping, side-effect-free memory dumps, and hardware state.
+  frame stepping, memory editing, save states, rewinding, and tile/palette/OAM
+  viewers.
 
 ## Quick start
 
@@ -252,8 +253,9 @@ cargo run -p cinnabar-frontend -- path/to/game.gba --debug
 
 It starts paused at the cartridge entry point. Type `help` for the command
 list. The debugger supports registers and CPSR, ARM/Thumb disassembly around
-PC, side-effect-free memory dumps, instruction and frame stepping, breakpoints,
-and PPU/DMA/timer/IRQ state:
+PC, side-effect-free memory dumps, memory editing, instruction and frame
+stepping, breakpoints, save-state slots, frame rewinding, tile/palette/OAM
+views, layer toggles, and PPU/DMA/timer/IRQ state:
 
 ```text
 r, regs                 registers, CPSR and mode
@@ -263,6 +265,12 @@ s [n], step [n]         execute n instructions
 f [n], frame [n]        run n frames
 c, continue             run until a breakpoint
 b, bd, bl               set, delete, list breakpoints
+w8/w16/w32 <addr> <v>   write memory
+ss/sl [slot]            save/load an in-memory state slot
+record on|off            record frames for rewind
+rewind [n]              restore recorded frames
+palette, tiles, oam, bg viewers for PPU data
+layers, layer <name>    toggle BG/OBJ/window layers
 ppu, dma, timers, irq   hardware state
 ```
 
@@ -454,8 +462,9 @@ The honest compatibility picture:
 - Sound DMA refill timing is approximated; the FIFO itself is clocked by Timer
   0/1. High square/noise frequencies alias at 48 kHz.
 - Mosaic and a few PPU edge cases are register-complete but not fully rendered.
-- No save states, graphical debugger panels, link cable, netplay, or shaders
-  yet. The headless debugger is available now.
+- No graphical debugger panels, link cable, netplay, or shaders yet. Save
+  states, rewind, and text-mode PPU viewers are available in the headless
+  debugger.
 - Commercial game compatibility is still a work in progress. The CPU, memory,
   and save foundations are validated; PPU edge cases and timing are the next
   compatibility frontier.

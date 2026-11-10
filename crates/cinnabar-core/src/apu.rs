@@ -32,6 +32,8 @@
 //!   alias, as they would in any 48 kHz capture; the phase accumulators
 //!   themselves run in CPU cycles.
 
+use serde::{Deserialize, Serialize};
+
 use std::collections::VecDeque;
 
 /// GBA CPU clock in Hz.
@@ -89,7 +91,7 @@ const DUTY_PATTERNS: [[u8; 8]; 4] = [
 ];
 
 /// A volume envelope shared by channels 1, 2 and 4.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 struct Envelope {
     initial_volume: u8,
     volume: u8,
@@ -134,7 +136,7 @@ impl Envelope {
 }
 
 /// Channel 1's frequency sweep unit.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 struct Sweep {
     period: u8,
     shift: u8,
@@ -208,7 +210,7 @@ impl Sweep {
 }
 
 /// A GB-style square-wave channel (CH1 with sweep, CH2 without).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 struct SquareChannel {
     playing: bool,
     dac_enabled: bool,
@@ -333,7 +335,7 @@ impl SquareChannel {
 }
 
 /// The wavetable channel (CH3).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 struct WaveChannel {
     playing: bool,
     dac_enabled: bool,
@@ -456,7 +458,7 @@ impl WaveChannel {
 }
 
 /// The noise channel (CH4).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 struct NoiseChannel {
     playing: bool,
     dac_enabled: bool,
@@ -574,7 +576,7 @@ impl NoiseChannel {
 }
 
 /// One direct-sound FIFO.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 struct DmaSound {
     fifo: VecDeque<u8>,
     current: f32,
@@ -627,8 +629,9 @@ impl DmaSound {
 }
 
 /// The audio processing unit.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Apu {
-    regs: [u8; REG_COUNT],
+    regs: Vec<u8>,
     wave_ram: [[u8; 16]; 2],
     sample_rate: u32,
     samples: Vec<f32>,
@@ -655,7 +658,7 @@ impl Apu {
     pub fn new() -> Self {
         Self {
             regs: {
-                let mut regs = [0; REG_COUNT];
+                let mut regs = vec![0; REG_COUNT];
                 regs[REG_SOUNDBIAS..REG_SOUNDBIAS + 2]
                     .copy_from_slice(&SOUNDBIAS_RESET.to_le_bytes());
                 regs

@@ -1,6 +1,8 @@
 //! Direct Memory Access channels.
 
-#[derive(Clone, Debug, Default)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DmaChannel {
     pub src: u32,
     pub dst: u32,
@@ -49,7 +51,7 @@ impl DmaChannel {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Dma {
     pub channels: [DmaChannel; 4],
 }

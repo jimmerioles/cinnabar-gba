@@ -1,8 +1,10 @@
 //! Cartridge header parsing and ROM access.
 
+use serde::{Deserialize, Serialize};
+
 pub const ROM_BASE: u32 = 0x0800_0000;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SaveType {
     None,
     Sram,

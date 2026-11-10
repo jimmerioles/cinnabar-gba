@@ -1,6 +1,8 @@
 //! Interrupt controller (IE / IF / IME).
 
 /// Interrupt bits, matching the GBA's IE/IF layout.
+use serde::{Deserialize, Serialize};
+
 pub mod bits {
     pub const VBLANK: u16 = 1 << 0;
     pub const HBLANK: u16 = 1 << 1;
@@ -16,7 +18,7 @@ pub mod bits {
     pub const KEYPAD: u16 = 1 << 12;
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Irq {
     pub ie: u16,
     pub if_: u16,

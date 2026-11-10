@@ -1,8 +1,10 @@
 //! Four hardware timers.
 
+use serde::{Deserialize, Serialize};
+
 use crate::irq::{self, Irq};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Timer {
     pub reload: u16,
     pub counter: u16,
@@ -33,7 +35,7 @@ impl Timer {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Timers {
     pub timers: [Timer; 4],
 }

@@ -8,11 +8,14 @@ and the parts of the GBA that only show up when you run real games.
 
 - [x] Register/CPSR viewer with ARM and Thumb disassembly.
 - [x] Breakpoints, step, step-frame, and frame stepping.
-- [x] Memory hex viewer (editor still pending).
-- [ ] Tile, palette, background-map, and OAM viewers.
-- [x] PPU/DMA/timer/IRQ state readout (layer toggles still pending).
-- [ ] Save-state serialization with multiple slots.
-- [ ] Rewind buffer.
+- [x] Memory hex viewer and editor.
+- [x] Tile, palette, background-map, and OAM viewers (terminal).
+- [x] PPU/DMA/timer/IRQ state readout and layer toggles.
+- [x] Save-state serialization with multiple slots.
+- [x] Rewind buffer.
+
+v0.2 is complete in the headless debugger. Graphical panels remain part of the
+v0.4 frontend polish.
 
 **Why first:** a good debugger is the force multiplier for every compatibility
 bug after this point.

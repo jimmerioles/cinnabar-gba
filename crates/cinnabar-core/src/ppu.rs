@@ -4,6 +4,8 @@
 //! mosaic and color effects are composed into a BGR555 framebuffer that the
 //! frontend converts to RGB.
 
+use serde::{Deserialize, Serialize};
+
 use crate::irq::{self, Irq};
 use crate::{CYCLES_PER_SCANLINE, SCANLINES, SCREEN_HEIGHT, SCREEN_WIDTH, VISIBLE_SCANLINES};
 
@@ -57,6 +59,7 @@ struct Candidate {
     order: u16,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Ppu {
     pub vcount: u16,
     pub dispcnt: u16,

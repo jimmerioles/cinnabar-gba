@@ -1,6 +1,8 @@
 //! Keypad input.
 
 /// Button bits, active-low in the hardware register.
+use serde::{Deserialize, Serialize};
+
 pub mod keys {
     pub const A: u16 = 1 << 0;
     pub const B: u16 = 1 << 1;
@@ -14,7 +16,7 @@ pub mod keys {
     pub const L: u16 = 1 << 9;
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Keypad {
     /// Bit set = pressed.
     pub pressed: u16,

@@ -9,6 +9,7 @@ use crate::irq::{self, Irq};
 use crate::keypad::Keypad;
 use crate::ppu::Ppu;
 use crate::save::SaveMedia;
+use crate::save_state::BusState;
 use crate::timer::Timers;
 
 /// The CPU's view of the machine. Implemented by [`Bus`] and by test harnesses.
@@ -470,6 +471,52 @@ impl Bus {
 
     pub fn save_type(&self) -> SaveType {
         self.cart.save_type
+    }
+
+    pub(crate) fn save_state(&self) -> BusState {
+        BusState {
+            ewram: self.ewram.clone(),
+            iwram: self.iwram.clone(),
+            save: self.save.clone(),
+            ppu: self.ppu.clone(),
+            apu: self.apu.clone(),
+            dma: self.dma.clone(),
+            timers: self.timers.clone(),
+            irq: self.irq.clone(),
+            keypad: self.keypad.clone(),
+            waitcnt: self.waitcnt,
+            postflg: self.postflg,
+            halted: self.halted,
+            wait_irq: self.wait_irq,
+            wait_vblank: self.wait_vblank,
+            reset_requested: self.reset_requested,
+            pending_cycles: self.pending_cycles,
+            last_swi: self.last_swi,
+            open_bus: self.open_bus,
+            dma_active: self.dma_active,
+        }
+    }
+
+    pub(crate) fn restore_state(&mut self, state: BusState) {
+        self.ewram = state.ewram;
+        self.iwram = state.iwram;
+        self.save = state.save;
+        self.ppu = state.ppu;
+        self.apu = state.apu;
+        self.dma = state.dma;
+        self.timers = state.timers;
+        self.irq = state.irq;
+        self.keypad = state.keypad;
+        self.waitcnt = state.waitcnt;
+        self.postflg = state.postflg;
+        self.halted = state.halted;
+        self.wait_irq = state.wait_irq;
+        self.wait_vblank = state.wait_vblank;
+        self.reset_requested = state.reset_requested;
+        self.pending_cycles = state.pending_cycles;
+        self.last_swi = state.last_swi;
+        self.open_bus = state.open_bus;
+        self.dma_active = state.dma_active;
     }
 
     /// Read a byte without side effects, for debugger memory views.
