@@ -413,6 +413,16 @@ The honest compatibility picture:
 
 See [`ROADMAP.md`](ROADMAP.md) for the next milestones.
 
+## Why “Cinnabar”?
+
+Cinnabar is a red mineral, and Cinnabar Island is a memorable location in the
+Pokémon games that introduced many of us to the GBA era. The name is a small nod
+to that history, not an official association. The `GBA` suffix is deliberate: it
+tells you exactly what the project is and keeps the name searchable.
+
+Cinnabar GBA is an independent clean-room emulator. It is not affiliated with
+Nintendo, Game Freak, or The Pokémon Company.
+
 ## Legal
 
 Cinnabar GBA contains **no Nintendo ROMs and no Nintendo BIOS**. The demo cartridges
