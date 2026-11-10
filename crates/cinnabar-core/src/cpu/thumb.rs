@@ -260,7 +260,7 @@ fn pc_relative_load<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     let rd = ((op >> 8) & 7) as usize;
     let imm = (op & 0xFF) * 4;
     let addr = (cpu.reg(15) & !2).wrapping_add(imm);
-    cpu.set_reg(rd, bus.read32(addr));
+    cpu.set_reg(rd, read_word(bus, addr));
     cpu.add_cycles(1);
 }
 
@@ -276,13 +276,13 @@ fn load_store_register<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         let value = if byte {
             bus.read8(addr) as u32
         } else {
-            bus.read32(addr)
+            read_word(bus, addr)
         };
         cpu.set_reg(rd, value);
     } else if byte {
         bus.write8(addr, cpu.reg(rd) as u8);
     } else {
-        bus.write32(addr, cpu.reg(rd));
+        write_word(bus, addr, cpu.reg(rd));
     }
     cpu.add_cycles(1);
 }
@@ -296,9 +296,9 @@ fn load_store_signed<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     let addr = cpu.reg(rb).wrapping_add(cpu.reg(ro));
 
     match (h, s) {
-        (false, false) => bus.write16(addr, cpu.reg(rd) as u16),
+        (false, false) => write_half(bus, addr, cpu.reg(rd) as u16),
         (true, false) => {
-            let value = bus.read16(addr) as u32;
+            let value = read_half(bus, addr);
             cpu.set_reg(rd, value);
         }
         (false, true) => {
@@ -306,7 +306,7 @@ fn load_store_signed<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
             cpu.set_reg(rd, value);
         }
         (true, true) => {
-            let value = bus.read16(addr) as i16 as i32 as u32;
+            let value = read_signed_half(bus, addr);
             cpu.set_reg(rd, value);
         }
     }
@@ -326,13 +326,13 @@ fn load_store_immediate<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         let value = if byte {
             bus.read8(addr) as u32
         } else {
-            bus.read32(addr)
+            read_word(bus, addr)
         };
         cpu.set_reg(rd, value);
     } else if byte {
         bus.write8(addr, cpu.reg(rd) as u8);
     } else {
-        bus.write32(addr, cpu.reg(rd));
+        write_word(bus, addr, cpu.reg(rd));
     }
     cpu.add_cycles(1);
 }
@@ -345,10 +345,10 @@ fn load_store_halfword_immediate<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32)
     let addr = cpu.reg(rb).wrapping_add(offset);
 
     if load {
-        let value = bus.read16(addr) as u32;
+        let value = read_half(bus, addr);
         cpu.set_reg(rd, value);
     } else {
-        bus.write16(addr, cpu.reg(rd) as u16);
+        write_half(bus, addr, cpu.reg(rd) as u16);
     }
     cpu.add_cycles(1);
 }
@@ -360,9 +360,9 @@ fn sp_relative<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     let addr = cpu.r[13].wrapping_add(offset);
 
     if load {
-        cpu.set_reg(rd, bus.read32(addr));
+        cpu.set_reg(rd, read_word(bus, addr));
     } else {
-        bus.write32(addr, cpu.reg(rd));
+        write_word(bus, addr, cpu.reg(rd));
     }
     cpu.add_cycles(1);
 }
@@ -402,13 +402,13 @@ fn push_pop<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         let mut addr = base;
         for i in 0..8 {
             if list & (1 << i) != 0 {
-                let value = bus.read32(addr);
+                let value = read_word(bus, addr);
                 cpu.set_reg(i, value);
                 addr += 4;
             }
         }
         if pc_lr {
-            let value = bus.read32(addr);
+            let value = read_word(bus, addr);
             cpu.set_reg(15, value);
         }
         cpu.r[13] = base.wrapping_add(bytes);
@@ -417,12 +417,12 @@ fn push_pop<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         let mut addr = base;
         for i in 0..8 {
             if list & (1 << i) != 0 {
-                bus.write32(addr, cpu.reg(i));
+                write_word(bus, addr, cpu.reg(i));
                 addr += 4;
             }
         }
         if pc_lr {
-            bus.write32(addr, cpu.r[14]);
+            write_word(bus, addr, cpu.r[14]);
         }
         cpu.r[13] = base;
     }
@@ -436,22 +436,45 @@ fn multiple<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     let list = op & 0xFF;
     let count = list.count_ones();
     let base = cpu.reg(rb);
+
+    if list == 0 {
+        // Thumb's empty-list quirk transfers PC and advances the base by 0x40.
+        if load {
+            let value = read_word(bus, base);
+            cpu.set_reg(15, value);
+        } else {
+            write_word(bus, base, cpu.r[15].wrapping_add(4));
+        }
+        cpu.set_reg(rb, base.wrapping_add(0x40));
+        cpu.add_cycles(1);
+        return;
+    }
+
     let mut addr = base;
+    let new_base = base.wrapping_add(count * 4);
+    let first_register = list.trailing_zeros() as usize;
 
     for i in 0..8 {
         if list & (1 << i) != 0 {
             if load {
-                let value = bus.read32(addr);
+                let value = read_word(bus, addr);
                 cpu.set_reg(i, value);
             } else {
-                bus.write32(addr, cpu.reg(i));
+                // As with ARM, a base register that is transferred after the
+                // first register sees the updated base. Thumb tests t230-t232.
+                let value = if i == rb && rb != first_register {
+                    new_base
+                } else {
+                    cpu.reg(i)
+                };
+                write_word(bus, addr, value);
             }
             addr += 4;
         }
     }
 
     if !(load && list & (1 << rb) != 0) {
-        cpu.set_reg(rb, base.wrapping_add(count * 4));
+        cpu.set_reg(rb, new_base);
     }
     cpu.add_cycles(count);
 }
@@ -480,16 +503,18 @@ fn unconditional_branch(cpu: &mut Cpu, op: u32) {
 
 fn long_branch(cpu: &mut Cpu, op: u32) {
     let hi = (op >> 11) & 1 != 0;
-    let offset = sign_extend_11(op & 0x7FF);
 
     if hi {
-        let target = cpu.reg(14).wrapping_add(offset << 1);
+        // The low 11-bit field is unsigned; only the high field is signed.
+        let low = (op & 0x7FF) << 1;
+        let target = cpu.reg(14).wrapping_add(low);
         let return_addr = cpu.r[15] | 1;
         cpu.set_reg(14, return_addr);
         cpu.set_reg(15, target);
         cpu.add_cycles(2);
     } else {
-        let target = cpu.reg(15).wrapping_add(offset << 12);
+        let high = sign_extend_11(op & 0x7FF) << 12;
+        let target = cpu.reg(15).wrapping_add(high);
         cpu.set_reg(14, target);
     }
 }
@@ -497,6 +522,41 @@ fn long_branch(cpu: &mut Cpu, op: u32) {
 #[inline]
 fn sign_extend_11(value: u32) -> u32 {
     (((value << 21) as i32) >> 21) as u32
+}
+
+fn read_word<M: Memory>(bus: &mut M, addr: u32) -> u32 {
+    let value = bus.read32(addr & !3);
+    if addr & 3 != 0 {
+        value.rotate_right((addr & 3) * 8)
+    } else {
+        value
+    }
+}
+
+fn write_word<M: Memory>(bus: &mut M, addr: u32, value: u32) {
+    bus.write32(addr, value);
+}
+
+fn read_half<M: Memory>(bus: &mut M, addr: u32) -> u32 {
+    let value = bus.read16(addr & !1) as u32;
+    if addr & 1 != 0 {
+        value.rotate_right(8)
+    } else {
+        value
+    }
+}
+
+fn read_signed_half<M: Memory>(bus: &mut M, addr: u32) -> u32 {
+    let value = bus.read16(addr & !1) as i16 as i32;
+    if addr & 1 != 0 {
+        (value >> 8) as u32
+    } else {
+        value as u32
+    }
+}
+
+fn write_half<M: Memory>(bus: &mut M, addr: u32, value: u16) {
+    bus.write16(addr, value);
 }
 
 #[cfg(test)]

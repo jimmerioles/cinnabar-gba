@@ -416,7 +416,7 @@ fn halfword_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
             cpu.set_reg(rn, base.wrapping_add(post));
         }
     } else if !signed && half {
-        bus.write16(addr & !1, cpu.reg(rd) as u16);
+        bus.write16(addr, cpu.reg(rd) as u16);
         if do_writeback {
             cpu.set_reg(rn, base.wrapping_add(post));
         }
@@ -495,7 +495,7 @@ fn single_data_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         if byte {
             bus.write8(addr, value as u8);
         } else {
-            bus.write32(addr & !3, value);
+            bus.write32(addr, value);
         }
         if do_writeback {
             cpu.set_reg(rn, base.wrapping_add(post));

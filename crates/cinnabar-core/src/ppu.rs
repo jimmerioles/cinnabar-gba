@@ -556,27 +556,42 @@ impl Ppu {
         x >= x1 && x < x2 && y >= y1 && y < y2
     }
 
+    /// VRAM is 96 KiB inside a 128 KiB window. The upper 32 KiB mirrors the
+    /// first 32 KiB, and the whole window repeats every 128 KiB.
+    fn vram_offset(addr: usize) -> usize {
+        let offset = addr % 0x2_0000;
+        if offset >= 0x1_8000 {
+            offset - 0x1_8000
+        } else {
+            offset
+        }
+    }
+
     pub fn read_vram8(&self, addr: u32) -> u8 {
-        self.vram8((addr as usize) % self.vram.len())
+        self.vram8(Self::vram_offset(addr as usize))
     }
 
     pub fn read_vram16(&self, addr: u32) -> u16 {
-        self.vram16((addr as usize) % self.vram.len())
+        self.vram16(Self::vram_offset(addr as usize))
     }
 
     pub fn read_vram32(&self, addr: u32) -> u32 {
-        let offset = (addr as usize) % self.vram.len();
+        let offset = Self::vram_offset(addr as usize);
         self.vram16(offset) as u32 | ((self.vram16(offset + 2) as u32) << 16)
     }
 
     pub fn write_vram8(&mut self, addr: u32, value: u8) {
-        let offset = (addr as usize) % self.vram.len();
+        // A byte store to VRAM is duplicated into both bytes of the
+        // addressed halfword, matching the GBA's 16-bit video memory.
+        let len = self.vram.len();
+        let offset = Self::vram_offset((addr as usize) & !1);
         self.vram[offset] = value;
+        self.vram[(offset + 1) % len] = value;
     }
 
     pub fn write_vram16(&mut self, addr: u32, value: u16) {
         let len = self.vram.len();
-        let offset = (addr as usize) % len;
+        let offset = Self::vram_offset(addr as usize);
         let bytes = value.to_le_bytes();
         self.vram[offset] = bytes[0];
         self.vram[(offset + 1) % len] = bytes[1];
@@ -600,8 +615,11 @@ impl Ppu {
     }
 
     pub fn write_palette8(&mut self, addr: u32, value: u8) {
-        let offset = (addr as usize) % self.palette.len();
+        // Palette byte stores are duplicated across the halfword too.
+        let len = self.palette.len();
+        let offset = (addr as usize & !1) % len;
         self.palette[offset] = value;
+        self.palette[(offset + 1) % len] = value;
     }
 
     pub fn write_palette16(&mut self, addr: u32, value: u16) {
@@ -635,9 +653,8 @@ impl Ppu {
             | ((self.read_oam16((offset + 2) as u32) as u32) << 16)
     }
 
-    pub fn write_oam8(&mut self, addr: u32, value: u8) {
-        let offset = (addr as usize) % self.oam.len();
-        self.oam[offset] = value;
+    pub fn write_oam8(&mut self, _addr: u32, _value: u8) {
+        // OAM has no byte-write enable; 8-bit stores are ignored.
     }
 
     pub fn write_oam16(&mut self, addr: u32, value: u16) {

@@ -65,8 +65,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         image::ColorType::Rgb8,
     )?;
     println!(
-        "frames={frames} pc={:08X} unique_colors={} non_black={} -> {}",
+        "frames={frames} pc={:08X} vcount={} dispstat={:04X} frame_count={} line_cycles={} halted={} if={:04X} ie={:04X} ime={} unique_colors={} non_black={} -> {}",
         system.cpu.pc(),
+        system.bus.ppu.vcount,
+        system.bus.ppu.dispstat,
+        system.bus.ppu.frame_count,
+        system.bus.ppu.line_cycles(),
+        system.bus.halted,
+        system.bus.irq.if_,
+        system.bus.irq.ie,
+        system.bus.irq.ime,
         unique.len(),
         non_black,
         out_path.display()

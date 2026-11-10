@@ -83,13 +83,18 @@ impl Cartridge {
         self.rom[0xBD] == expected
     }
 
+    fn offset(addr: u32) -> usize {
+        // The cartridge window is 32 MiB and mirrors every 32 MiB.
+        (addr.wrapping_sub(ROM_BASE) & 0x01FF_FFFF) as usize
+    }
+
     pub fn read8(&self, addr: u32) -> u8 {
-        let offset = addr.wrapping_sub(ROM_BASE) as usize;
+        let offset = Self::offset(addr);
         self.rom.get(offset).copied().unwrap_or(0)
     }
 
     pub fn read16(&self, addr: u32) -> u16 {
-        let offset = addr.wrapping_sub(ROM_BASE) as usize;
+        let offset = Self::offset(addr);
         match (self.rom.get(offset), self.rom.get(offset + 1)) {
             (Some(&lo), Some(&hi)) => u16::from_le_bytes([lo, hi]),
             (Some(&lo), None) => lo as u16,
@@ -98,7 +103,7 @@ impl Cartridge {
     }
 
     pub fn read32(&self, addr: u32) -> u32 {
-        let offset = addr.wrapping_sub(ROM_BASE) as usize;
+        let offset = Self::offset(addr);
         match (
             self.rom.get(offset),
             self.rom.get(offset + 1),

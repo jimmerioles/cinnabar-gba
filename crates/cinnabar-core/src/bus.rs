@@ -289,8 +289,7 @@ impl Memory for Bus {
             0x06 => self.ppu.read_vram16(addr),
             0x07 => self.ppu.read_oam16(addr),
             0x08..=0x0D => self.cart.read16(addr),
-            0x0E | 0x0F => self.save.read8(addr) as u16
-                | ((self.save.read8(addr.wrapping_add(1)) as u16) << 8),
+            0x0E | 0x0F => self.save.read16(addr),
             _ => self.open_bus as u16,
         };
         self.open_bus = (self.open_bus & 0xFFFF_0000) | value as u32;
@@ -308,10 +307,7 @@ impl Memory for Bus {
             0x06 => self.ppu.read_vram32(addr),
             0x07 => self.ppu.read_oam32(addr),
             0x08..=0x0D => self.cart.read32(addr),
-            0x0E | 0x0F => (self.save.read8(addr) as u32)
-                | ((self.save.read8(addr.wrapping_add(1)) as u32) << 8)
-                | ((self.save.read8(addr.wrapping_add(2)) as u32) << 16)
-                | ((self.save.read8(addr.wrapping_add(3)) as u32) << 24),
+            0x0E | 0x0F => self.save.read32(addr),
             _ => self.open_bus,
         };
         self.open_bus = value;
@@ -336,17 +332,15 @@ impl Memory for Bus {
     fn write16(&mut self, addr: u32, value: u16) {
         match addr >> 24 {
             0x00 => {}
-            0x02 => write16_slice(&mut self.ewram, addr as usize, value),
-            0x03 => write16_slice(&mut self.iwram, addr as usize, value),
-            0x04 => self.write_io16((addr & 0x3FF) as u16, value),
-            0x05 => self.ppu.write_palette16(addr, value),
-            0x06 => self.ppu.write_vram16(addr, value),
-            0x07 => self.ppu.write_oam16(addr, value),
+            0x02 => write16_slice(&mut self.ewram, (addr & !1) as usize, value),
+            0x03 => write16_slice(&mut self.iwram, (addr & !1) as usize, value),
+            0x04 => self.write_io16(((addr & 0x3FF) & !1) as u16, value),
+            0x05 => self.ppu.write_palette16(addr & !1, value),
+            0x06 => self.ppu.write_vram16(addr & !1, value),
+            0x07 => self.ppu.write_oam16(addr & !1, value),
             0x08..=0x0D => {}
-            0x0E | 0x0F => {
-                self.save.write8(addr, value as u8);
-                self.save.write8(addr.wrapping_add(1), (value >> 8) as u8);
-            }
+            // Save media is an 8-bit bus; preserve the byte lane.
+            0x0E | 0x0F => self.save.write16(addr, value),
             _ => {}
         }
     }
@@ -354,18 +348,14 @@ impl Memory for Bus {
     fn write32(&mut self, addr: u32, value: u32) {
         match addr >> 24 {
             0x00 => {}
-            0x02 => write32_slice(&mut self.ewram, addr as usize, value),
-            0x03 => write32_slice(&mut self.iwram, addr as usize, value),
-            0x04 => self.write_io32((addr & 0x3FF) as u16, value),
-            0x05 => self.ppu.write_palette32(addr, value),
-            0x06 => self.ppu.write_vram32(addr, value),
-            0x07 => self.ppu.write_oam32(addr, value),
+            0x02 => write32_slice(&mut self.ewram, (addr & !3) as usize, value),
+            0x03 => write32_slice(&mut self.iwram, (addr & !3) as usize, value),
+            0x04 => self.write_io32(((addr & 0x3FF) & !3) as u16, value),
+            0x05 => self.ppu.write_palette32(addr & !3, value),
+            0x06 => self.ppu.write_vram32(addr & !3, value),
+            0x07 => self.ppu.write_oam32(addr & !3, value),
             0x08..=0x0D => {}
-            0x0E | 0x0F => {
-                for i in 0..4 {
-                    self.save.write8(addr.wrapping_add(i), (value >> (i * 8)) as u8);
-                }
-            }
+            0x0E | 0x0F => self.save.write32(addr, value),
             _ => {}
         }
     }
