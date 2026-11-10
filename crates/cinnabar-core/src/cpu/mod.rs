@@ -62,7 +62,10 @@ struct Banks {
     r13: [u32; 6],
     r14: [u32; 6],
     spsr: [u32; 6],
+    /// r8-r12 for FIQ mode.
     fiq_r8_12: [u32; 5],
+    /// r8-r12 for every other mode (they are shared outside FIQ).
+    usr_r8_12: [u32; 5],
 }
 
 /// ARM7TDMI register state.
@@ -458,12 +461,18 @@ impl Cpu {
         }
         self.banks.r13[old.bank()] = self.r[13];
         self.banks.r14[old.bank()] = self.r[14];
-        if old == Mode::Fiq {
-            self.banks.fiq_r8_12.copy_from_slice(&self.r[8..13]);
-        }
-        if new == Mode::Fiq {
+
+        // FIQ has its own r8-r12. Save the shared set before entering FIQ and
+        // restore it when leaving; otherwise returning from an FIQ handler
+        // silently corrupts the interrupted code's high registers.
+        if old != Mode::Fiq && new == Mode::Fiq {
+            self.banks.usr_r8_12.copy_from_slice(&self.r[8..13]);
             self.r[8..13].copy_from_slice(&self.banks.fiq_r8_12);
+        } else if old == Mode::Fiq && new != Mode::Fiq {
+            self.banks.fiq_r8_12.copy_from_slice(&self.r[8..13]);
+            self.r[8..13].copy_from_slice(&self.banks.usr_r8_12);
         }
+
         self.r[13] = self.banks.r13[new.bank()];
         self.r[14] = self.banks.r14[new.bank()];
     }

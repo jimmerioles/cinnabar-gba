@@ -290,6 +290,7 @@ name = "cinnabar-core"
 version = "0.1.0"
 dependencies = [
  "cinnabar-testrom",
+ "image",
 ]
 
 [[package]]

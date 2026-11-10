@@ -10,3 +10,4 @@ description = "A clean-room Game Boy Advance emulator core"
 
 [dev-dependencies]
 cinnabar-testrom.workspace = true
+image.workspace = true

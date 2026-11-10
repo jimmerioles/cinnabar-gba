@@ -28,7 +28,7 @@ pub fn execute<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
                 swap(cpu, bus, op);
             } else if op & 0x0FBF_0FFF == 0x010F_0000 {
                 mrs(cpu, op);
-            } else if op & 0x0FB0_F000 == 0x0120_F000 {
+            } else if op & 0x0DB0_F000 == 0x0120_F000 {
                 msr(cpu, op);
             } else if op & 0x0000_0090 == 0x0000_0090 {
                 halfword_transfer(cpu, bus, op);
@@ -36,7 +36,15 @@ pub fn execute<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
                 data_processing(cpu, bus, op);
             }
         }
-        0b001 => data_processing(cpu, bus, op),
+        0b001 => {
+            // MSR immediate shares the data-processing immediate encoding
+            // space; decode it before falling through to ALU operations.
+            if op & 0x0DB0_F000 == 0x0120_F000 {
+                msr(cpu, op);
+            } else {
+                data_processing(cpu, bus, op);
+            }
+        }
         0b010 | 0b011 => single_data_transfer(cpu, bus, op),
         0b100 => block_transfer(cpu, bus, op),
         0b101 => branch(cpu, op),
@@ -56,6 +64,7 @@ fn data_processing<M: Memory>(cpu: &mut Cpu, _bus: &mut M, op: u32) {
     let s = (op >> 20) & 1 != 0;
     let rn = ((op >> 16) & 0xF) as usize;
     let rd = ((op >> 12) & 0xF) as usize;
+    let register_shift = !immediate && op & 0x10 != 0;
 
     let (operand2, shifter_carry) = if immediate {
         Cpu::rotated_immediate(op)
@@ -63,21 +72,36 @@ fn data_processing<M: Memory>(cpu: &mut Cpu, _bus: &mut M, op: u32) {
         let rm = (op & 0xF) as usize;
         let shift_type = (op >> 5) & 3;
         if op & 0x10 != 0 {
-            // Register-specified shift.
+            // Register-specified shift. ARM7TDMI reads PC as +12 here, one
+            // pipeline slot later than the usual +8. The gba-tests suite
+            // exercises this quirk directly.
             if op & 0x80 != 0 {
                 cpu.undefined();
                 return;
             }
             let rs = ((op >> 8) & 0xF) as usize;
-            let amount = cpu.reg(rs) & 0xFF;
-            cpu.shift(cpu.reg(rm), shift_type, amount, true)
+            let amount = if rs == 15 {
+                cpu.r[15].wrapping_add(8)
+            } else {
+                cpu.reg(rs)
+            } & 0xFF;
+            let value = if rm == 15 {
+                cpu.r[15].wrapping_add(8)
+            } else {
+                cpu.reg(rm)
+            };
+            cpu.shift(value, shift_type, amount, true)
         } else {
             let amount = (op >> 7) & 0x1F;
             cpu.shift(cpu.reg(rm), shift_type, amount, false)
         }
     };
 
-    let operand1 = cpu.reg(rn);
+    let operand1 = if register_shift && rn == 15 {
+        cpu.r[15].wrapping_add(8)
+    } else {
+        cpu.reg(rn)
+    };
     let test = matches!(opcode, 8..=11);
     let set_flags = s || test;
 
@@ -178,13 +202,18 @@ fn data_processing<M: Memory>(cpu: &mut Cpu, _bus: &mut M, op: u32) {
         _ => unreachable!(),
     };
 
-    if !test {
+    if test {
+        // ARM7TDMI quirk: a test instruction with Rd=15 and S=1 restores
+        // CPSR from SPSR (changing mode) but does not branch. Test 234 of
+        // gba-tests exercises this undocumented behaviour.
         if rd == 15 && s {
             cpu.restore_cpsr_from_spsr();
-            cpu.set_reg(15, result);
-        } else {
-            cpu.set_reg(rd, result);
         }
+    } else if rd == 15 && s {
+        cpu.restore_cpsr_from_spsr();
+        cpu.set_reg(15, result);
+    } else {
+        cpu.set_reg(rd, result);
     }
 }
 
@@ -257,8 +286,14 @@ fn swap<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         bus.write8(addr, value as u8);
         old
     } else {
-        let old = bus.read32(addr);
-        bus.write32(addr, value);
+        let aligned = addr & !3;
+        let old = bus.read32(aligned);
+        let old = if addr & 3 != 0 {
+            old.rotate_right((addr & 3) * 8)
+        } else {
+            old
+        };
+        bus.write32(aligned, value);
         old
     };
 
@@ -349,26 +384,45 @@ fn halfword_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         offset.wrapping_neg()
     };
 
+    let do_writeback = !pre || writeback;
+
     if load {
+        let misaligned = addr & 1 != 0;
         let value = match (signed, half) {
-            (false, true) => bus.read16(addr) as u32,
+            (false, true) => {
+                let value = bus.read16(addr & !1) as u32;
+                if misaligned {
+                    value.rotate_right(8)
+                } else {
+                    value
+                }
+            }
             (true, false) => bus.read8(addr) as i8 as i32 as u32,
-            (true, true) => bus.read16(addr) as i16 as i32 as u32,
+            (true, true) => {
+                let value = bus.read16(addr & !1) as i16 as i32;
+                if misaligned {
+                    (value >> 8) as u32
+                } else {
+                    value as u32
+                }
+            }
             (false, false) => {
                 cpu.undefined();
                 return;
             }
         };
         cpu.set_reg(rd, value);
+        if do_writeback && rd != rn {
+            cpu.set_reg(rn, base.wrapping_add(post));
+        }
     } else if !signed && half {
-        bus.write16(addr, cpu.reg(rd) as u16);
+        bus.write16(addr & !1, cpu.reg(rd) as u16);
+        if do_writeback {
+            cpu.set_reg(rn, base.wrapping_add(post));
+        }
     } else {
         cpu.undefined();
         return;
-    }
-
-    if !pre || writeback {
-        cpu.set_reg(rn, base.wrapping_add(post));
     }
     cpu.add_cycles(1);
 }
@@ -412,11 +466,13 @@ fn single_data_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         offset.wrapping_neg()
     };
 
+    let do_writeback = !pre || writeback;
+
     if load {
         let value = if byte {
             bus.read8(addr) as u32
         } else {
-            let value = bus.read32(addr);
+            let value = bus.read32(addr & !3);
             if addr & 3 != 0 {
                 value.rotate_right((addr & 3) * 8)
             } else {
@@ -424,17 +480,26 @@ fn single_data_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
             }
         };
         cpu.set_reg(rd, value);
+        // When Rd == Rn, the loaded value wins over writeback on ARM7TDMI.
+        if do_writeback && rd != rn {
+            cpu.set_reg(rn, base.wrapping_add(post));
+        }
     } else {
-        let value = cpu.reg(rd);
+        // ARM7TDMI stores PC+4 for a PC source operand: the value is read one
+        // pipeline slot later than a normal PC operand. gba-tests t356.
+        let value = if rd == 15 {
+            cpu.r[15].wrapping_add(8)
+        } else {
+            cpu.reg(rd)
+        };
         if byte {
             bus.write8(addr, value as u8);
         } else {
-            bus.write32(addr, value);
+            bus.write32(addr & !3, value);
         }
-    }
-
-    if !pre || writeback {
-        cpu.set_reg(rn, base.wrapping_add(post));
+        if do_writeback {
+            cpu.set_reg(rn, base.wrapping_add(post));
+        }
     }
     cpu.add_cycles(1);
 }
@@ -458,16 +523,27 @@ fn block_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     };
 
     if list == 0 {
-        // ARM7TDMI's documented empty-list quirk: transfer PC and move the
-        // base by 0x40.
+        // ARM7TDMI's documented empty-list quirk: transfer PC at the mode's
+        // start address and move the base by 0x40 in the transfer direction.
+        let empty_addr = match (pre, up) {
+            (false, true) => base,
+            (true, true) => base.wrapping_add(4),
+            (false, false) => base.wrapping_sub(0x3C),
+            (true, false) => base.wrapping_sub(0x40),
+        };
         if load {
-            let value = bus.read32(base);
+            let value = bus.read32(empty_addr & !3);
             cpu.set_reg(15, value);
         } else {
-            bus.write32(base, cpu.reg(15));
+            bus.write32(empty_addr & !3, cpu.r[15].wrapping_add(8));
         }
         if writeback {
-            cpu.set_reg(rn, base.wrapping_add(0x40));
+            let new_base = if up {
+                base.wrapping_add(0x40)
+            } else {
+                base.wrapping_sub(0x40)
+            };
+            cpu.set_reg(rn, new_base);
         }
         cpu.add_cycles(1);
         return;
@@ -475,24 +551,43 @@ fn block_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
 
     let mut addr = start;
     let mut deferred_pc = None;
+    let new_base = if up {
+        base.wrapping_add(count.wrapping_mul(4))
+    } else {
+        base.wrapping_sub(count.wrapping_mul(4))
+    };
+    let first_register = list.trailing_zeros() as usize;
 
     for i in 0..16 {
         if list & (1 << i) == 0 {
             continue;
         }
         if load {
-            let value = bus.read32(addr);
+            let value = bus.read32(addr & !3);
             if i == 15 && user_bank {
                 deferred_pc = Some(value);
-            } else if i == 13 || i == 14 {
-                // Loading into SP/LR with the user-bank bit is rare; keeping
-                // the current bank is the pragmatic choice.
-                cpu.set_reg(i, value);
+            } else if user_bank {
+                set_user_register(cpu, i, value);
             } else {
                 cpu.set_reg(i, value);
             }
         } else {
-            bus.write32(addr, cpu.reg(i));
+            // STM with S=1 stores the user-bank registers. PC itself is
+            // stored as PC+4 on ARM7TDMI.
+            // On ARM7TDMI the base writeback can land before the base
+            // register's own store, depending on its position in the list.
+            // If the base is the first register transferred, it sees the old
+            // value; otherwise it sees the new base. gba-tests t518..t525.
+            let value = if user_bank {
+                user_register(cpu, i)
+            } else if i == 15 {
+                cpu.r[15].wrapping_add(8)
+            } else if i == rn && writeback && rn != first_register {
+                new_base
+            } else {
+                cpu.reg(i)
+            };
+            bus.write32(addr & !3, value);
         }
         addr = addr.wrapping_add(4);
     }
@@ -502,16 +597,68 @@ fn block_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
         cpu.set_reg(15, pc);
     }
 
-    if writeback && !(load && list & (1 << 15) != 0) {
-        let new_base = if up {
-            base.wrapping_add(count.wrapping_mul(4))
-        } else {
-            base.wrapping_sub(count.wrapping_mul(4))
-        };
+    // Writeback is suppressed only when the base register itself is in the
+    // list. A PC in the list is the normal function-return pattern and must
+    // still update SP.
+    if writeback && !(load && list & (1 << rn) != 0) {
         cpu.set_reg(rn, new_base);
     }
 
     cpu.add_cycles(count);
+}
+
+fn user_register(cpu: &Cpu, index: usize) -> u32 {
+    match index {
+        8..=12 => {
+            if cpu.mode() == Mode::Fiq {
+                cpu.banks.usr_r8_12[index - 8]
+            } else {
+                cpu.r[index]
+            }
+        }
+        13 => {
+            if matches!(cpu.mode(), Mode::User | Mode::System) {
+                cpu.r[13]
+            } else {
+                cpu.banks.r13[0]
+            }
+        }
+        14 => {
+            if matches!(cpu.mode(), Mode::User | Mode::System) {
+                cpu.r[14]
+            } else {
+                cpu.banks.r14[0]
+            }
+        }
+        _ => cpu.r[index],
+    }
+}
+
+fn set_user_register(cpu: &mut Cpu, index: usize, value: u32) {
+    match index {
+        8..=12 => {
+            if cpu.mode() == Mode::Fiq {
+                cpu.banks.usr_r8_12[index - 8] = value;
+            } else {
+                cpu.r[index] = value;
+            }
+        }
+        13 => {
+            if matches!(cpu.mode(), Mode::User | Mode::System) {
+                cpu.r[13] = value;
+            } else {
+                cpu.banks.r13[0] = value;
+            }
+        }
+        14 => {
+            if matches!(cpu.mode(), Mode::User | Mode::System) {
+                cpu.r[14] = value;
+            } else {
+                cpu.banks.r14[0] = value;
+            }
+        }
+        _ => cpu.r[index] = value,
+    }
 }
 
 fn branch(cpu: &mut Cpu, op: u32) {
