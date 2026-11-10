@@ -58,11 +58,19 @@ if [ -f "test-roms/homebrew/celeste.gba" ]; then
     out="$("$bin" test-roms/homebrew/celeste.gba 300 "$tmp/celeste.png" 1 2>&1)"
     colors="$(printf '%s\n' "$out" | sed -n 's/.* unique_colors=\([0-9]*\).*/\1/p')"
     non_black="$(printf '%s\n' "$out" | sed -n 's/.* non_black=\([0-9]*\).*/\1/p')"
+    audio_peak="$(printf '%s\n' "$out" | sed -n 's/.* audio_peak=\([0-9.]*\).*/\1/p')"
+    audible=0
+    if [ -n "$audio_peak" ] && awk "BEGIN {exit !($audio_peak > 0.01)}"; then
+        audible=1
+    fi
     if [ -n "$colors" ] && [ "$colors" -ge 8 ] \
-        && [ -n "$non_black" ] && [ "$non_black" -ge 5000 ]; then
-        printf 'PASS %-18s colors=%s non_black=%s\n' celeste "$colors" "$non_black"
+        && [ -n "$non_black" ] && [ "$non_black" -ge 5000 ] \
+        && [ "$audible" -eq 1 ]; then
+        printf 'PASS %-18s colors=%s non_black=%s audio_peak=%s\n' \
+            celeste "$colors" "$non_black" "$audio_peak"
     else
-        printf 'FAIL %-18s colors=%s non_black=%s\n' celeste "${colors:-?}" "${non_black:-?}"
+        printf 'FAIL %-18s colors=%s non_black=%s audio_peak=%s\n' \
+            celeste "${colors:-?}" "${non_black:-?}" "${audio_peak:-?}"
         failures=$((failures + 1))
     fi
 else

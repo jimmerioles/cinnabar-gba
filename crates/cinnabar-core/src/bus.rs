@@ -106,6 +106,7 @@ impl Bus {
     pub fn step(&mut self, cycles: u32) {
         self.timers.step(cycles, &mut self.irq);
         self.apu.step(cycles);
+        self.service_audio_dma();
         let events = self.ppu.step(cycles, &mut self.irq);
         if events.hblank {
             self.run_dma_timing(2);
@@ -113,6 +114,61 @@ impl Bus {
         if events.vblank {
             self.run_dma_timing(1);
         }
+    }
+
+    /// Sound DMA is triggered by FIFO refill requests rather than by VBlank
+    /// or HBlank. DMA1/DMA2 with special timing and a FIFO destination are
+    /// refilled here when the APU queue runs low.
+    fn service_audio_dma(&mut self) {
+        if self.dma_active {
+            return;
+        }
+        for channel in [1usize, 2] {
+            let ch = &self.dma.channels[channel];
+            if !ch.enabled() || ch.timing() != 3 {
+                continue;
+            }
+            let fifo = match ch.dst {
+                0x0400_00A0 => 0,
+                0x0400_00A4 => 1,
+                _ => continue,
+            };
+            if self.apu.fifo_len(fifo) > 16 {
+                continue;
+            }
+            self.run_sound_dma(channel);
+        }
+    }
+
+    fn run_sound_dma(&mut self, index: usize) {
+        if self.dma_active {
+            return;
+        }
+        let channel = self.dma.channels[index].clone();
+
+        self.dma_active = true;
+        let word = channel.word_size();
+        let mut src = channel.src;
+        // Sound DMA always writes to the fixed FIFO register. The hardware
+        // ignores the destination control field in this mode.
+        let fifo = channel.dst;
+        let requests = if word { 4 } else { 8 };
+        for _ in 0..requests {
+            if word {
+                let value = self.read32(src);
+                self.write32(fifo, value);
+                src = adjust_address(src, channel.src_control(), 4);
+            } else {
+                let value = self.read16(src);
+                self.write16(fifo, value);
+                src = adjust_address(src, channel.src_control(), 2);
+            }
+        }
+
+        let ch = &mut self.dma.channels[index];
+        ch.src = src;
+        ch.dst = fifo;
+        self.dma_active = false;
     }
 
     fn run_dma_timing(&mut self, timing: u16) {

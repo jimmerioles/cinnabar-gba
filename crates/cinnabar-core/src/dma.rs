@@ -14,27 +14,27 @@ impl DmaChannel {
     }
 
     pub fn timing(&self) -> u16 {
-        (self.control >> 6) & 3
+        (self.control >> 12) & 3
     }
 
     pub fn word_size(&self) -> bool {
-        self.control & 0x20 != 0
+        self.control & (1 << 10) != 0
     }
 
     pub fn repeat(&self) -> bool {
-        self.control & 0x10 != 0
+        self.control & (1 << 9) != 0
     }
 
     pub fn irq_enabled(&self) -> bool {
-        self.control & 0x0300 != 0
+        self.control & (1 << 14) != 0
     }
 
     pub fn dest_control(&self) -> u16 {
-        self.control & 3
+        (self.control >> 5) & 3
     }
 
     pub fn src_control(&self) -> u16 {
-        (self.control >> 2) & 3
+        (self.control >> 7) & 3
     }
 
     pub fn count_value(&self, index: usize) -> u32 {

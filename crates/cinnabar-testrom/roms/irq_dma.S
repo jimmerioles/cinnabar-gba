@@ -30,7 +30,7 @@ entry:
     ldr r0, =0x08000000 + color_word
     ldr r1, =0x06000000
     ldr r2, =19200
-    ldr r3, =0x8028
+    ldr r3, =0x8500
     mov r4, #0x04000000
     str r0, [r4, #0xD4]
     str r1, [r4, #0xD8]

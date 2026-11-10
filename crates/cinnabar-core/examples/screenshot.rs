@@ -9,7 +9,7 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use cinnabar_core::cart::Cartridge;
-use cinnabar_core::system::System;
+use cinnabar_core::system::{FrameOutput, System};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -44,7 +44,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut system = System::new(cart);
     system.set_keys(keys);
-    let output = system.run_frames(frames);
+    let mut output = FrameOutput::default();
+    let mut audio_samples = 0usize;
+    let mut audio_peak = 0.0f32;
+    for _ in 0..frames {
+        output = system.run_frame();
+        audio_samples += output.audio.len();
+        for &sample in &output.audio {
+            audio_peak = audio_peak.max(sample.abs());
+        }
+    }
 
     let mut rgb = Vec::with_capacity(240 * 160 * 3);
     let mut unique = std::collections::BTreeSet::new();
@@ -64,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     image::save_buffer(&out_path, &rgb, 240, 160, image::ColorType::Rgb8)?;
     println!(
-        "frames={frames} pc={:08X} r7={:08X} r12={:08X} vcount={} dispcnt={:04X} dispstat={:04X} frame_count={} line_cycles={} halted={} wait_vblank={} if={:04X} ie={:04X} ime={} audio={} unique_colors={} non_black={} -> {}",
+        "frames={frames} pc={:08X} r7={:08X} r12={:08X} vcount={} dispcnt={:04X} dispstat={:04X} frame_count={} line_cycles={} halted={} wait_vblank={} if={:04X} ie={:04X} ime={} audio={} audio_peak={:.4} unique_colors={} non_black={} -> {}",
         system.cpu.pc(),
         system.cpu.regs()[7],
         system.cpu.regs()[12],
@@ -78,7 +87,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         system.bus.irq.if_,
         system.bus.irq.ie,
         system.bus.irq.ime,
-        output.audio.len(),
+        audio_samples,
+        audio_peak,
         unique.len(),
         non_black,
         out_path.display()

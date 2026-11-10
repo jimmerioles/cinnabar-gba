@@ -53,6 +53,8 @@ struct Candidate {
     priority: u8,
     layer: Layer,
     semi: bool,
+    /// OAM index for sprites; 0 for backgrounds. Used only to break ties.
+    order: u16,
 }
 
 pub struct Ppu {
@@ -186,6 +188,7 @@ impl Ppu {
         events
     }
 
+    #[allow(clippy::needless_range_loop)] // pixel math reads better with x
     fn render_line(&mut self, y: u16) {
         let base = y as usize * SCREEN_WIDTH;
         if self.dispcnt & 0x0080 != 0 || self.dispcnt & 0x0007 > 5 {
@@ -201,6 +204,12 @@ impl Ppu {
             priority: 3,
             layer: Layer::Backdrop,
             semi: false,
+            order: 0,
+        };
+        let sprites: [Option<Candidate>; SCREEN_WIDTH] = if self.dispcnt & 0x1000 != 0 {
+            self.sprite_line(y as usize)
+        } else {
+            [None; SCREEN_WIDTH]
         };
 
         for x in 0..SCREEN_WIDTH {
@@ -226,8 +235,8 @@ impl Ppu {
                 }
             }
 
-            if self.dispcnt & 0x1000 != 0 && window & 0x10 != 0 {
-                if let Some(candidate) = self.sprite_pixel(x, y as usize) {
+            if window & 0x10 != 0 {
+                if let Some(candidate) = sprites[x] {
                     insert_candidate(&mut best, &mut second, candidate);
                 }
             }
@@ -339,6 +348,7 @@ impl Ppu {
                 _ => Layer::Bg3,
             },
             semi: false,
+            order: 0,
         })
     }
 
@@ -387,6 +397,7 @@ impl Ppu {
             priority: (cnt & 3) as u8,
             layer: if layer == 2 { Layer::Bg2 } else { Layer::Bg3 },
             semi: false,
+            order: 0,
         })
     }
 
@@ -411,11 +422,13 @@ impl Ppu {
             priority: 0,
             layer: Layer::Bg2,
             semi: false,
+            order: 0,
         })
     }
 
-    fn sprite_pixel(&self, x: usize, y: usize) -> Option<Candidate> {
-        let mut best: Option<(u8, usize, Candidate)> = None;
+    #[allow(clippy::needless_range_loop)] // x drives both the line and texture
+    fn sprite_line(&self, y: usize) -> [Option<Candidate>; SCREEN_WIDTH] {
+        let mut line: [Option<Candidate>; SCREEN_WIDTH] = [None; SCREEN_WIDTH];
 
         for index in 0..128 {
             let base = index * 8;
@@ -444,84 +457,96 @@ impl Ppu {
             let bw = if double_size { w * 2 } else { w };
             let bh = if double_size { h * 2 } else { h };
 
-            if (x as i32) < sx || (x as i32) >= sx + bw as i32 {
-                continue;
-            }
             if (y as i32) < sy || (y as i32) >= sy + bh as i32 {
                 continue;
             }
-
-            let (tx, ty) = if affine {
-                let affine_index = ((attr1 >> 9) & 0x1F) as usize;
-                let param = affine_index * 32 + 6;
-                let pa = self.oam_i16(param) as i32;
-                let pb = self.oam_i16(param + 8) as i32;
-                let pc = self.oam_i16(param + 16) as i32;
-                let pd = self.oam_i16(param + 24) as i32;
-                let dx = x as i32 - (sx + bw as i32 / 2);
-                let dy = y as i32 - (sy + bh as i32 / 2);
-                let tx = ((pa * dx + pb * dy) >> 8) + w as i32 / 2;
-                let ty = ((pc * dx + pd * dy) >> 8) + h as i32 / 2;
-                if tx < 0 || ty < 0 || tx >= w as i32 || ty >= h as i32 {
-                    continue;
-                }
-                (tx as usize, ty as usize)
-            } else {
-                let mut tx = x as i32 - sx;
-                let mut ty = y as i32 - sy;
-                if attr1 & 0x1000 != 0 {
-                    tx = w as i32 - 1 - tx;
-                }
-                if attr1 & 0x2000 != 0 {
-                    ty = h as i32 - 1 - ty;
-                }
-                (tx as usize, ty as usize)
-            };
-
-            let tile_x = tx / 8;
-            let tile_y = ty / 8;
-            let tile = (attr2 & 0x3FF) as usize;
-            let one_d = self.dispcnt & 0x0040 != 0;
-            let tile_num = if one_d {
-                tile + tile_y * (w / 8) + tile_x
-            } else {
-                tile + tile_y * 32 + tile_x
-            };
-
-            let eight_bpp = attr0 & 0x2000 != 0;
-            let palette_bank = ((attr2 >> 12) & 0xF) as usize;
-            let (color_index, palette_index) = if eight_bpp {
-                let index = self.vram8(0x1_0000 + tile_num * 64 + (ty % 8) * 8 + (tx % 8)) as usize;
-                (index, index)
-            } else {
-                let byte = self.vram8(0x1_0000 + tile_num * 32 + (ty % 8) * 4 + (tx % 8) / 2);
-                let index = ((byte >> (((tx % 8) & 1) * 4)) & 0xF) as usize;
-                (index, palette_bank * 16 + index)
-            };
-            if color_index == 0 {
+            let x_start = sx.clamp(0, SCREEN_WIDTH as i32) as usize;
+            let x_end = (sx + bw as i32).clamp(0, SCREEN_WIDTH as i32) as usize;
+            if x_start >= x_end {
                 continue;
             }
 
-            let priority = ((attr2 >> 10) & 3) as u8;
-            let candidate = Candidate {
-                color: self.palette16(palette_index),
-                priority,
-                layer: Layer::Obj,
-                semi: mode == 1,
+            let (pa, pb, pc, pd) = if affine {
+                let affine_index = ((attr1 >> 9) & 0x1F) as usize;
+                let param = affine_index * 32 + 6;
+                (
+                    self.oam_i16(param) as i32,
+                    self.oam_i16(param + 8) as i32,
+                    self.oam_i16(param + 16) as i32,
+                    self.oam_i16(param + 24) as i32,
+                )
+            } else {
+                (0, 0, 0, 0)
             };
 
-            let replace = match &best {
-                None => true,
-                Some((best_priority, best_index, _)) => {
-                    priority < *best_priority || (priority == *best_priority && index < *best_index)
+            let tile = (attr2 & 0x3FF) as usize;
+            let one_d = self.dispcnt & 0x0040 != 0;
+            let eight_bpp = attr0 & 0x2000 != 0;
+            let palette_bank = ((attr2 >> 12) & 0xF) as usize;
+            let priority = ((attr2 >> 10) & 3) as u8;
+            let semi = mode == 1;
+
+            for x in x_start..x_end {
+                let (tx, ty) = if affine {
+                    let dx = x as i32 - (sx + bw as i32 / 2);
+                    let dy = y as i32 - (sy + bh as i32 / 2);
+                    let tx = ((pa * dx + pb * dy) >> 8) + w as i32 / 2;
+                    let ty = ((pc * dx + pd * dy) >> 8) + h as i32 / 2;
+                    if tx < 0 || ty < 0 || tx >= w as i32 || ty >= h as i32 {
+                        continue;
+                    }
+                    (tx as usize, ty as usize)
+                } else {
+                    let mut tx = x as i32 - sx;
+                    let mut ty = y as i32 - sy;
+                    if attr1 & 0x1000 != 0 {
+                        tx = w as i32 - 1 - tx;
+                    }
+                    if attr1 & 0x2000 != 0 {
+                        ty = h as i32 - 1 - ty;
+                    }
+                    (tx as usize, ty as usize)
+                };
+
+                let tile_x = tx / 8;
+                let tile_y = ty / 8;
+                let tile_num = if one_d {
+                    tile + tile_y * (w / 8) + tile_x
+                } else {
+                    tile + tile_y * 32 + tile_x
+                };
+
+                let (color_index, palette_index) = if eight_bpp {
+                    let index =
+                        self.vram8(0x1_0000 + tile_num * 64 + (ty % 8) * 8 + (tx % 8)) as usize;
+                    (index, index)
+                } else {
+                    let byte = self.vram8(0x1_0000 + tile_num * 32 + (ty % 8) * 4 + (tx % 8) / 2);
+                    let index = ((byte >> (((tx % 8) & 1) * 4)) & 0xF) as usize;
+                    (index, palette_bank * 16 + index)
+                };
+                if color_index == 0 {
+                    continue;
                 }
-            };
-            if replace {
-                best = Some((priority, index, candidate));
+
+                let candidate = Candidate {
+                    color: self.palette16(palette_index),
+                    priority,
+                    layer: Layer::Obj,
+                    semi,
+                    order: index as u16,
+                };
+                let replace = match line[x] {
+                    None => true,
+                    Some(current) => (priority, index as u16) < (current.priority, current.order),
+                };
+                if replace {
+                    line[x] = Some(candidate);
+                }
             }
         }
 
-        best.map(|(_, _, candidate)| candidate)
+        line
     }
 
     fn window_mask(&self, x: usize, y: usize) -> u16 {
@@ -817,7 +842,8 @@ fn insert_candidate(
     let better_than_best = match best {
         None => true,
         Some(current) => {
-            (candidate.priority, candidate.layer.rank()) < (current.priority, current.layer.rank())
+            (candidate.priority, candidate.layer.rank(), candidate.order)
+                < (current.priority, current.layer.rank(), current.order)
         }
     };
     if better_than_best {
@@ -827,8 +853,8 @@ fn insert_candidate(
         let better_than_second = match second {
             None => true,
             Some(current) => {
-                (candidate.priority, candidate.layer.rank())
-                    < (current.priority, current.layer.rank())
+                (candidate.priority, candidate.layer.rank(), candidate.order)
+                    < (current.priority, current.layer.rank(), current.order)
             }
         };
         if better_than_second {

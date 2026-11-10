@@ -787,8 +787,7 @@ impl Apu {
                 if value & 0x8000 != 0 {
                     self.fifo_b.reset();
                 }
-                // FIFO reset bits are write-only.
-                self.regs[REG_SOUNDCNT_H] &= 0x77;
+                // FIFO reset strobes (bits 11 and 15) are write-only.
                 self.regs[REG_SOUNDCNT_H + 1] &= 0x77;
             }
             REG_SOUNDCNT_X => {
@@ -819,6 +818,15 @@ impl Apu {
             self.channel_accumulator %= u64::from(self.sample_rate);
 
             self.generate_sample(channel_cycles);
+        }
+    }
+
+    /// Number of bytes queued in a direct-sound FIFO (0 = A, 1 = B).
+    pub fn fifo_len(&self, channel: usize) -> usize {
+        if channel == 0 {
+            self.fifo_a.fifo.len()
+        } else {
+            self.fifo_b.fifo.len()
         }
     }
 

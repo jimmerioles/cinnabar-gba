@@ -267,7 +267,7 @@ PASS none               r12=00000000
 PASS hello              colors=2
 PASS shades             colors=15
 PASS stripes            colors=2
-PASS celeste            colors=11 non_black=11995
+PASS celeste            colors=11 non_black=11995 audio_peak=0.5000
 all selected validations passed
 ```
 
