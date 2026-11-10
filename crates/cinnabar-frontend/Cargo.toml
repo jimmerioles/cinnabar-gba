@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Cinnabar GBA emulator frontend"
+description = "Cinnabar GBA: a fast Game Boy Advance emulator frontend"
 
 [[bin]]
 name = "cinnabar"

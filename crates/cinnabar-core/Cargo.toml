@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "A clean-room Game Boy Advance emulator core"
+description = "Cinnabar GBA: a clean-room Game Boy Advance emulator core"
 
 [dependencies]
 

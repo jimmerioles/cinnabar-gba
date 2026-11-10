@@ -1,17 +1,17 @@
-# Cinnabar
+# Cinnabar GBA
 
 [![CI](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg)](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**A clean-room Game Boy Advance emulator in Rust.**
+**A fast, clean-room Game Boy Advance emulator in Rust.**
 
-Cinnabar is split into a headless, deterministic emulator core and a small native
-frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
+Cinnabar GBA is split into a headless, deterministic emulator core and a small
+native frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
 renders modes 0–5, plays PSG and DMA sound, and persists SRAM/Flash saves. No
 Nintendo BIOS image is required: the common BIOS SWI calls are implemented as
 HLE.
 
-![Cinnabar demo](docs/demo.png)
+![Cinnabar GBA demo](docs/demo.png)
 
 | Tiled mode + sprite + alpha blending | Full ARM test suite |
 |---|---|
@@ -43,7 +43,7 @@ git clone https://github.com/jimmerioles/cinnabar-gba.git
 cd cinnabar-gba
 ```
 
-Cinnabar needs a stable Rust toolchain (1.85+) and the usual Linux window/audio
+Cinnabar GBA needs a stable Rust toolchain (1.85+) and the usual Linux window/audio
 development libraries. On Arch:
 
 ```bash
@@ -115,7 +115,7 @@ loaded automatically on the next run.
 
 ## Manual testing without a ROM
 
-Cinnabar ships with test cartridges, so you do not need a commercial ROM to
+Cinnabar GBA ships with test cartridges, so you do not need a commercial ROM to
 check that the emulator works.
 
 ### 1. The one-command check
@@ -125,7 +125,7 @@ cargo run -p cinnabar-frontend -- --selftest
 ```
 
 ```text
-Cinnabar self-test
+Cinnabar GBA self-test
   [ok]   logo demo: 3 colors, red C on dark blue
   [ok]   tiled PPU: 6 colors, blended sprite
   [ok]   keypad: A, right and Start indicators
@@ -173,7 +173,7 @@ The first should show `Hello world!`; the second should show
 
 ### 5. Play a real homebrew game
 
-Celeste Classic is a third-party GBA port with a public release. Cinnabar does
+Celeste Classic is a third-party GBA port with a public release. Cinnabar GBA does
 not bundle it; fetch it from the upstream project:
 
 ```bash
@@ -224,7 +224,7 @@ cargo run -p cinnabar-frontend -- --builtin tiled \
 - **No window**: run `--selftest` or `--headless` to confirm the core works,
   then check that `WAYLAND_DISPLAY` or `DISPLAY` is set in your graphical
   session.
-- **No audio**: Cinnabar prints a warning and keeps running silently.
+- **No audio**: Cinnabar GBA prints a warning and keeps running silently.
 - **Window too small**: start with `--scale 4`.
 - **Slow**: build a release binary with `cargo run --release -p cinnabar-frontend`.
 - **Keyboard does nothing**: click the window to focus it and try
@@ -293,7 +293,7 @@ all selected validations passed
 | VBlankIntrWait / halt-wake | **PASS** (integration test) |
 | Keypad test screen | **PASS** (integration test + `--builtin input`) |
 | Celeste Classic title + gameplay | **PASS** (optional real-game smoke test) |
-| BIOS internals | Not applicable: Cinnabar uses HLE instead of a real BIOS |
+| BIOS internals | Not applicable: Cinnabar GBA uses HLE instead of a real BIOS |
 | EEPROM saves | Not implemented |
 | `unsafe` suite | Test 2 is documented upstream as failing on real hardware; it is not part of our validation |
 
@@ -324,7 +324,7 @@ Source lives in `crates/cinnabar-testrom/roms/`.
 
 ## Performance
 
-Cinnabar is headless-first, and the core is fast. On this machine, a 300-frame
+Cinnabar GBA is headless-first, and the core is fast. On this machine, a 300-frame
 Celeste Classic gameplay run (A held to start) finishes in about 0.66 seconds,
 or ~455 fps:
 
@@ -384,7 +384,7 @@ make demo
 
 ## What works, and what is next
 
-Cinnabar is a real emulator, not a tech demo, but no emulator is ever finished.
+Cinnabar GBA is a real emulator, not a tech demo, but no emulator is ever finished.
 The honest compatibility picture:
 
 **Working**
@@ -415,12 +415,12 @@ See [`ROADMAP.md`](ROADMAP.md) for the next milestones.
 
 ## Legal
 
-Cinnabar contains **no Nintendo ROMs and no Nintendo BIOS**. The demo cartridges
+Cinnabar GBA contains **no Nintendo ROMs and no Nintendo BIOS**. The demo cartridges
 are generated from the assembly in this repository. You must supply your own
 legally dumped ROMs and BIOS if you want to use them. `gba-tests` is fetched
 separately and remains under its own license.
 
-Game Boy Advance is a trademark of Nintendo. Cinnabar is not affiliated with or
+Game Boy Advance is a trademark of Nintendo. Cinnabar GBA is not affiliated with or
 endorsed by Nintendo.
 
 ## Credits

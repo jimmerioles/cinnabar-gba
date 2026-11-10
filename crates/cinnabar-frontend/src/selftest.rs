@@ -13,7 +13,7 @@ use cinnabar_core::{Cartridge, System};
 use cinnabar_testrom::{demo_rom, halt_rom, input_rom, irq_dma_rom, logo_rom, tiled_rom};
 
 pub fn run() -> Result<()> {
-    println!("Cinnabar self-test");
+    println!("Cinnabar GBA self-test");
     let mut failures = 0u32;
 
     let (_, fb) = run_rom(logo_rom(), 3);
