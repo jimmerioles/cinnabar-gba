@@ -111,6 +111,21 @@ impl System {
         &self.bus.ppu.framebuffer
     }
 
+    /// Read memory without side effects, for debugger views.
+    pub fn peek8(&self, addr: u32) -> u8 {
+        self.bus.peek8(addr)
+    }
+
+    /// Read memory without side effects, for debugger views.
+    pub fn peek16(&self, addr: u32) -> u16 {
+        self.bus.peek16(addr)
+    }
+
+    /// Read memory without side effects, for debugger views.
+    pub fn peek32(&self, addr: u32) -> u32 {
+        self.bus.peek32(addr)
+    }
+
     pub fn run_frames(&mut self, frames: u32) -> FrameOutput {
         let mut output = FrameOutput::default();
         for _ in 0..frames {

@@ -74,6 +74,14 @@ impl SaveMedia {
         self.data[offset]
     }
 
+    /// Read a save byte without advancing the flash command state.
+    pub fn peek8(&self, addr: u32) -> u8 {
+        if self.data.is_empty() {
+            return 0xFF;
+        }
+        self.data[self.data_offset(addr)]
+    }
+
     pub fn read16(&mut self, addr: u32) -> u16 {
         let byte = self.read8(addr);
         byte as u16 | ((byte as u16) << 8)

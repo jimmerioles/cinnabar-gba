@@ -38,6 +38,10 @@ pub struct Args {
     #[arg(long)]
     pub headless: bool,
 
+    /// Run an interactive headless debugger.
+    #[arg(long, conflicts_with = "screenshot")]
+    pub debug: bool,
+
     /// Number of frames to run in headless mode.
     #[arg(long, default_value_t = 180, value_name = "N")]
     pub frames: u32,
@@ -165,6 +169,13 @@ mod tests {
         let args = Args::try_parse_from(["cinnabar", "--demo"]).expect("valid flags");
         assert!(args.validate().is_ok());
         assert_eq!(args.rom_path(), None);
+    }
+
+    #[test]
+    fn accepts_the_headless_debugger() {
+        let args = Args::try_parse_from(["cinnabar", "--demo", "--debug"]).expect("valid flags");
+        assert!(args.validate().is_ok());
+        assert!(args.debug);
     }
 
     #[test]

@@ -8,6 +8,7 @@ pub mod bios;
 pub mod bus;
 pub mod cart;
 pub mod cpu;
+pub mod disasm;
 pub mod dma;
 pub mod irq;
 pub mod keypad;

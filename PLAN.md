@@ -379,16 +379,18 @@ Keep `gba-core` dependencies tiny. No async runtime. No `tokio`. The emulator is
 
 Build these in order after the first game boots:
 
-- [ ] Registers, CPSR, and mode
-- [ ] Disassembly around PC
-- [ ] Breakpoints, step, step-frame
-- [ ] Memory hex viewer/editor
+- [x] Registers, CPSR, and mode
+- [x] Disassembly around PC
+- [x] Breakpoints, step, step-frame
+- [x] Headless debugger CLI
+- [x] Memory hex viewer
+- [ ] Memory editor
 - [ ] Tile viewer
 - [ ] Palette viewer
 - [ ] Background map viewer
 - [ ] OAM / sprite viewer
 - [ ] Layer toggles
-- [ ] PPU, DMA, timer, and IRQ state
+- [x] PPU, DMA, timer, and IRQ state
 - [ ] Save-state slots
 - [ ] Rewind buffer
 

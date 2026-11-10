@@ -471,6 +471,105 @@ impl Bus {
     pub fn save_type(&self) -> SaveType {
         self.cart.save_type
     }
+
+    /// Read a byte without side effects, for debugger memory views.
+    pub fn peek8(&self, addr: u32) -> u8 {
+        match addr >> 24 {
+            0x00 => self.bios.get(addr as usize).copied().unwrap_or(0),
+            0x02 => self.ewram[(addr as usize) & 0x3_FFFF],
+            0x03 => self.iwram[(addr as usize) & 0x7FFF],
+            0x04 => {
+                let value = self.peek_io16((addr & 0x3FF) as u16);
+                if addr & 1 == 0 {
+                    value as u8
+                } else {
+                    (value >> 8) as u8
+                }
+            }
+            0x05 => self.ppu.read_palette8(addr),
+            0x06 => self.ppu.read_vram8(addr),
+            0x07 => self.ppu.read_oam8(addr),
+            0x08..=0x0D => {
+                let value = self.cart.read16(addr & !1);
+                if addr & 1 == 0 {
+                    value as u8
+                } else {
+                    (value >> 8) as u8
+                }
+            }
+            0x0E | 0x0F => self.save.peek8(addr),
+            _ => (self.open_bus >> ((addr & 3) * 8)) as u8,
+        }
+    }
+
+    /// Read a halfword without side effects, for debugger memory views.
+    pub fn peek16(&self, addr: u32) -> u16 {
+        match addr >> 24 {
+            0x00 => read16_slice(&self.bios, addr as usize),
+            0x02 => read16_slice(&self.ewram, addr as usize),
+            0x03 => read16_slice(&self.iwram, addr as usize),
+            0x04 => self.peek_io16((addr & 0x3FF) as u16),
+            0x05 => self.ppu.read_palette16(addr),
+            0x06 => self.ppu.read_vram16(addr),
+            0x07 => self.ppu.read_oam16(addr),
+            0x08..=0x0D => self.cart.read16(addr),
+            0x0E | 0x0F => {
+                let byte = self.save.peek8(addr);
+                u16::from(byte) | (u16::from(byte) << 8)
+            }
+            _ => self.open_bus as u16,
+        }
+    }
+
+    /// Read a word without side effects, for debugger memory views.
+    pub fn peek32(&self, addr: u32) -> u32 {
+        match addr >> 24 {
+            0x00 => read32_slice(&self.bios, addr as usize),
+            0x02 => read32_slice(&self.ewram, addr as usize),
+            0x03 => read32_slice(&self.iwram, addr as usize),
+            0x04 => {
+                let offset = (addr & 0x3FF) as u16;
+                u32::from(self.peek_io16(offset)) | (u32::from(self.peek_io16(offset + 2)) << 16)
+            }
+            0x05 => {
+                u32::from(self.ppu.read_palette16(addr))
+                    | (u32::from(self.ppu.read_palette16(addr + 2)) << 16)
+            }
+            0x06 => self.ppu.read_vram32(addr),
+            0x07 => self.ppu.read_oam32(addr),
+            0x08..=0x0D => self.cart.read32(addr),
+            0x0E | 0x0F => {
+                let byte = u32::from(self.save.peek8(addr));
+                byte | (byte << 8) | (byte << 16) | (byte << 24)
+            }
+            _ => self.open_bus,
+        }
+    }
+
+    fn peek_io16(&self, offset: u16) -> u16 {
+        let offset = offset & !1;
+        match offset {
+            0x000..=0x05F => self.ppu.read_io16(offset),
+            0x060..=0x0A7 => self.apu.read16(offset - 0x060),
+            0x0B0..=0x0DF => self.dma.read16(offset),
+            0x100..=0x10F => {
+                let index = ((offset - 0x100) / 4) as usize;
+                match (offset - 0x100) % 4 {
+                    0 => self.timers.read_reload(index),
+                    2 => self.timers.read_control(index),
+                    _ => 0,
+                }
+            }
+            0x130 => self.keypad.read(),
+            0x132 => self.keypad.keycnt,
+            0x200 => self.irq.ie,
+            0x202 => self.irq.if_,
+            0x204 => self.waitcnt,
+            0x208 => u16::from(self.irq.ime),
+            0x300 => u16::from(self.postflg),
+            _ => 0,
+        }
+    }
 }
 
 fn adjust_address(addr: u32, control: u16, size: u32) -> u32 {
@@ -500,4 +599,24 @@ fn write16_slice(slice: &mut [u8], addr: usize, value: u16) {
 fn write32_slice(slice: &mut [u8], addr: usize, value: u32) {
     write16_slice(slice, addr, value as u16);
     write16_slice(slice, addr + 2, (value >> 16) as u16);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn peeks_read_memory_without_advancing_open_bus() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        bus.write32(0x0200_0000, 0x1234_5678);
+
+        assert_eq!(bus.peek32(0x0200_0000), 0x1234_5678);
+        assert_eq!(bus.peek16(0x0200_0000), 0x5678);
+        assert_eq!(bus.peek8(0x0200_0000), 0x78);
+        assert_eq!(bus.peek8(0x0200_0001), 0x56);
+
+        bus.write16(0x0400_0200, 0x0001);
+        assert_eq!(bus.peek16(0x0400_0200), 1);
+        assert_eq!(bus.peek8(0x0400_0200), 1);
+    }
 }

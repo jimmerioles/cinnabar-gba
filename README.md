@@ -42,6 +42,8 @@ HLE.
   persistence.
 - **Headless mode** for CI and screenshots: no window, no audio device, just
   frames in and a PNG out.
+- **Headless debugger** with ARM/Thumb disassembly, breakpoints, instruction and
+  frame stepping, side-effect-free memory dumps, and hardware state.
 
 ## Quick start
 
@@ -240,6 +242,30 @@ cargo run -p cinnabar-frontend -- --builtin tiled \
 - **Keyboard does nothing**: click the window to focus it and try
   `--builtin input`.
 
+## Debugging
+
+Cinnabar GBA has an interactive headless debugger:
+
+```bash
+cargo run -p cinnabar-frontend -- path/to/game.gba --debug
+```
+
+It starts paused at the cartridge entry point. Type `help` for the command
+list. The debugger supports registers and CPSR, ARM/Thumb disassembly around
+PC, side-effect-free memory dumps, instruction and frame stepping, breakpoints,
+and PPU/DMA/timer/IRQ state:
+
+```text
+r, regs                 registers, CPSR and mode
+d [addr] [count]        disassemble at addr/PC
+x [addr] [length]       hex dump at addr/PC
+s [n], step [n]         execute n instructions
+f [n], frame [n]        run n frames
+c, continue             run until a breakpoint
+b, bd, bl               set, delete, list breakpoints
+ppu, dma, timers, irq   hardware state
+```
+
 ## Architecture
 
 ```text
@@ -400,6 +426,7 @@ make selftest
 make input
 make celeste
 make bench
+make debug
 make demo
 ```
 
@@ -427,7 +454,8 @@ The honest compatibility picture:
 - Sound DMA refill timing is approximated; the FIFO itself is clocked by Timer
   0/1. High square/noise frequencies alias at 48 kHz.
 - Mosaic and a few PPU edge cases are register-complete but not fully rendered.
-- No save states, debugger, link cable, netplay, or shaders yet.
+- No save states, graphical debugger panels, link cable, netplay, or shaders
+  yet. The headless debugger is available now.
 - Commercial game compatibility is still a work in progress. The CPU, memory,
   and save foundations are validated; PPU edge cases and timing are the next
   compatibility frontier.

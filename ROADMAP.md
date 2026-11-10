@@ -6,13 +6,13 @@ and the parts of the GBA that only show up when you run real games.
 
 ## v0.2 — Debugger and save states
 
-- Register/CPSR viewer with ARM and Thumb disassembly.
-- Breakpoints, step, step-frame, and frame stepping.
-- Memory hex viewer/editor.
-- Tile, palette, background-map, and OAM viewers.
-- Layer toggles and PPU/DMA/timer/IRQ state.
-- Save-state serialization with multiple slots.
-- Rewind buffer.
+- [x] Register/CPSR viewer with ARM and Thumb disassembly.
+- [x] Breakpoints, step, step-frame, and frame stepping.
+- [x] Memory hex viewer (editor still pending).
+- [ ] Tile, palette, background-map, and OAM viewers.
+- [x] PPU/DMA/timer/IRQ state readout (layer toggles still pending).
+- [ ] Save-state serialization with multiple slots.
+- [ ] Rewind buffer.
 
 **Why first:** a good debugger is the force multiplier for every compatibility
 bug after this point.

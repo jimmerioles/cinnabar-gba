@@ -3,6 +3,7 @@
 mod app;
 mod audio;
 mod cli;
+mod debugger;
 mod headless;
 mod selftest;
 mod storage;
@@ -47,6 +48,12 @@ fn main() -> Result<()> {
 
     if let Err(error) = storage::load_save(&mut system, save_path.as_deref()) {
         eprintln!("cinnabar: warning: {error:#}");
+    }
+
+    if args.debug {
+        system = debugger::run(system, &title)?;
+        storage::persist_save(&mut system, save_path.as_deref())?;
+        return Ok(());
     }
 
     if args.headless {
