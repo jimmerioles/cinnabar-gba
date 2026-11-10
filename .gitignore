@@ -1,0 +1,7 @@
+/target
+**/*.rs.bk
+*.sav
+*.state
+/test-roms
+/screenshots/raw-*.png
+.DS_Store

@@ -1,0 +1,21 @@
+[package]
+name = "cinnabar-frontend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Cinnabar GBA emulator frontend"
+
+[[bin]]
+name = "cinnabar"
+path = "src/main.rs"
+
+[dependencies]
+cinnabar-core.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+cpal.workspace = true
+image.workspace = true
+rtrb.workspace = true
+softbuffer.workspace = true
+winit.workspace = true
