@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# Rebuild the hand-written demo ROM.
+# Rebuild the hand-written demo ROMs.
 #
 # Requires: llvm-mc, llvm-objcopy, python3.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-src="$root/crates/cinnabar-testrom/roms/demo.S"
-out="$root/crates/cinnabar-testrom/roms/demo.gba"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-llvm-mc -triple=armv4t-none-eabi -filetype=obj "$src" -o "$tmp/demo.o"
-llvm-objcopy -O binary --only-section=.text "$tmp/demo.o" "$tmp/demo.bin"
+for name in demo logo; do
+    src="$root/crates/cinnabar-testrom/roms/$name.S"
+    out="$root/crates/cinnabar-testrom/roms/$name.gba"
 
-python3 - "$tmp/demo.bin" "$out" <<'PY'
+    llvm-mc -triple=armv4t-none-eabi -filetype=obj "$src" -o "$tmp/$name.o"
+    llvm-objcopy -O binary --only-section=.text "$tmp/$name.o" "$tmp/$name.bin"
+
+    python3 - "$tmp/$name.bin" "$out" <<'PY'
 import sys
 from pathlib import Path
 
@@ -26,3 +28,4 @@ data[0xBD] = (-(total + 0x19)) & 0xFF
 out.write_bytes(data)
 print(f"wrote {out} ({len(data)} bytes)")
 PY
+done

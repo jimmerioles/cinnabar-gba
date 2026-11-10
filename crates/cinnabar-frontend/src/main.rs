@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let rom_path = args.rom_path();
     let rom = match rom_path {
         Some(path) => storage::read_rom(path)?,
-        None => cinnabar_testrom::demo_rom(),
+        None => cinnabar_testrom::logo_rom(),
     };
     let cart = Cartridge::new(rom);
 

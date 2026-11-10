@@ -3,5 +3,5 @@
 *.sav
 *.state
 /test-roms
-/screenshots/raw-*.png
+/screenshots/
 .DS_Store

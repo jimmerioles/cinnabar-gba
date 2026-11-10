@@ -1,6 +1,8 @@
 # GBA Emulator in Rust — Build Plan
 
-**Working name:** `gba` (rename later)
+**Working name:** Cinnabar
+**Status:** v0.1 implemented. See [`README.md`](README.md) for the current
+feature set, validation results, and quick start.
 **Goal:** a legally dumped GBA game boots, runs at full speed with audio, saves persist, and a debugger makes it pleasant to fix bugs.
 
 **Not the goal:** cycle-perfect emulation, link cable, netplay, or a shader stack. Compatibility first, accuracy where it matters.
