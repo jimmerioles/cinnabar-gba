@@ -260,9 +260,7 @@ fn multiply_long(cpu: &mut Cpu, op: u32) {
         let acc = acc as i64;
         a.wrapping_mul(b).wrapping_add(acc) as u64
     } else {
-        (a as u64)
-            .wrapping_mul(b as u64)
-            .wrapping_add(acc)
+        (a as u64).wrapping_mul(b as u64).wrapping_add(acc)
     };
 
     cpu.set_reg(rd_lo, result as u32);
@@ -378,11 +376,7 @@ fn halfword_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     } else {
         base
     };
-    let post = if up {
-        offset
-    } else {
-        offset.wrapping_neg()
-    };
+    let post = if up { offset } else { offset.wrapping_neg() };
 
     let do_writeback = !pre || writeback;
 
@@ -460,11 +454,7 @@ fn single_data_transfer<M: Memory>(cpu: &mut Cpu, bus: &mut M, op: u32) {
     } else {
         base
     };
-    let post = if up {
-        offset
-    } else {
-        offset.wrapping_neg()
-    };
+    let post = if up { offset } else { offset.wrapping_neg() };
 
     let do_writeback = !pre || writeback;
 
@@ -731,7 +721,10 @@ mod tests {
         cpu.r[0] = 0xDEAD_BEEF;
         cpu.r[1] = 0x0300_0000;
         run(&mut cpu, &mut bus, 0xE581_0000);
-        assert_eq!(<TestBus as Memory>::read32(&mut bus, 0x0300_0000), 0xDEAD_BEEF);
+        assert_eq!(
+            <TestBus as Memory>::read32(&mut bus, 0x0300_0000),
+            0xDEAD_BEEF
+        );
         run(&mut cpu, &mut bus, 0xE591_2000);
         assert_eq!(cpu.r[2], 0xDEAD_BEEF);
     }
@@ -745,8 +738,14 @@ mod tests {
         cpu.r[1] = 0x1111_1111;
         cpu.r[2] = 0x2222_2222;
         run(&mut cpu, &mut bus, 0xE8A0_0006);
-        assert_eq!(<TestBus as Memory>::read32(&mut bus, 0x0300_0000), 0x1111_1111);
-        assert_eq!(<TestBus as Memory>::read32(&mut bus, 0x0300_0004), 0x2222_2222);
+        assert_eq!(
+            <TestBus as Memory>::read32(&mut bus, 0x0300_0000),
+            0x1111_1111
+        );
+        assert_eq!(
+            <TestBus as Memory>::read32(&mut bus, 0x0300_0004),
+            0x2222_2222
+        );
         cpu.r[0] = 0x0300_0000;
         run(&mut cpu, &mut bus, 0xE8B0_0018);
         assert_eq!(cpu.r[3], 0x1111_1111);

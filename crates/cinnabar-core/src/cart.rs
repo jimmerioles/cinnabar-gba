@@ -110,9 +110,7 @@ impl Cartridge {
             self.rom.get(offset + 2),
             self.rom.get(offset + 3),
         ) {
-            (Some(&a), Some(&b), Some(&c), Some(&d)) => {
-                u32::from_le_bytes([a, b, c, d])
-            }
+            (Some(&a), Some(&b), Some(&c), Some(&d)) => u32::from_le_bytes([a, b, c, d]),
             _ => 0,
         }
     }
@@ -127,9 +125,7 @@ fn ascii_field(bytes: &[u8]) -> String {
         .iter()
         .position(|&b| b == 0 || b == 0xFF)
         .unwrap_or(bytes.len());
-    String::from_utf8_lossy(&bytes[..end])
-        .trim()
-        .to_string()
+    String::from_utf8_lossy(&bytes[..end]).trim().to_string()
 }
 
 fn detect_save_type(rom: &[u8]) -> SaveType {

@@ -222,8 +222,7 @@ impl Cpu {
     #[inline]
     pub(crate) fn reg(&self, index: usize) -> u32 {
         if index == 15 {
-            self.r[15]
-                .wrapping_add(if self.thumb() { 2 } else { 4 })
+            self.r[15].wrapping_add(if self.thumb() { 2 } else { 4 })
         } else {
             self.r[index]
         }
@@ -330,20 +329,14 @@ impl Cpu {
                         (value, c)
                     } else {
                         // RRX: carry into bit 31
-                        (
-                            (value >> 1) | ((c as u32) << 31),
-                            value & 1 != 0,
-                        )
+                        ((value >> 1) | ((c as u32) << 31), value & 1 != 0)
                     }
                 } else {
                     let amount = amount % 32;
                     if amount == 0 {
                         (value, value & 0x8000_0000 != 0)
                     } else {
-                        (
-                            value.rotate_right(amount),
-                            (value >> (amount - 1)) & 1 != 0,
-                        )
+                        (value.rotate_right(amount), (value >> (amount - 1)) & 1 != 0)
                     }
                 }
             }
@@ -352,13 +345,7 @@ impl Cpu {
 
     /// Add with carry, updating flags only when `set_flags` is true.
     /// Returns the result.
-    pub(crate) fn add_with_carry(
-        &mut self,
-        a: u32,
-        b: u32,
-        carry: bool,
-        set_flags: bool,
-    ) -> u32 {
+    pub(crate) fn add_with_carry(&mut self, a: u32, b: u32, carry: bool, set_flags: bool) -> u32 {
         let sum = a as u64 + b as u64 + carry as u64;
         let result = sum as u32;
         if set_flags {
@@ -373,13 +360,7 @@ impl Cpu {
 
     /// Subtract with borrow (`borrow` is 1 when a borrow is required, i.e.
     /// when carry is clear). Returns the result.
-    pub(crate) fn subtract(
-        &mut self,
-        a: u32,
-        b: u32,
-        borrow: bool,
-        set_flags: bool,
-    ) -> u32 {
+    pub(crate) fn subtract(&mut self, a: u32, b: u32, borrow: bool, set_flags: bool) -> u32 {
         let sub = (a as u64)
             .wrapping_sub(b as u64)
             .wrapping_sub(borrow as u64);

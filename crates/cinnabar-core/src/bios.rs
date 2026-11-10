@@ -127,7 +127,11 @@ fn cpu_set(bus: &mut Bus, cpu: &mut Cpu) {
         let value = if fill { bus.read32(src) } else { 0 };
         for i in 0..count {
             let target = dst.wrapping_add((i * 4) as u32);
-            let value = if fill { value } else { bus.read32(src.wrapping_add((i * 4) as u32)) };
+            let value = if fill {
+                value
+            } else {
+                bus.read32(src.wrapping_add((i * 4) as u32))
+            };
             bus.write32(target, value);
         }
     } else {
@@ -356,7 +360,7 @@ fn bg_affine_set(bus: &mut Bus, cpu: &mut Cpu) {
         let dy = bus.read16(s + 6) as i16 as i32;
         let sx = bus.read16(s + 8) as i16 as i32;
         let sy = bus.read16(s + 10) as i16 as i32;
-        let angle = bus.read16(s + 12) as u16;
+        let angle = bus.read16(s + 12);
         let cos = cosine(angle);
         let sin = sine(angle);
 
@@ -387,7 +391,7 @@ fn obj_affine_set(bus: &mut Bus, cpu: &mut Cpu) {
         let d = dst.wrapping_add(i * 8);
         let sx = bus.read16(s) as i16 as i32;
         let sy = bus.read16(s + 2) as i16 as i32;
-        let angle = bus.read16(s + 4) as u16;
+        let angle = bus.read16(s + 4);
         let cos = cosine(angle);
         let sin = sine(angle);
 

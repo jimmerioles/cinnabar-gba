@@ -299,6 +299,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cinnabar-core",
+ "cinnabar-testrom",
  "clap",
  "cpal",
  "image",

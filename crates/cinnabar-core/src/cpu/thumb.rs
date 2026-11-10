@@ -371,11 +371,7 @@ fn load_address(cpu: &mut Cpu, op: u32) {
     let sp = (op >> 11) & 1 != 0;
     let rd = ((op >> 8) & 7) as usize;
     let offset = (op & 0xFF) * 4;
-    let base = if sp {
-        cpu.r[13]
-    } else {
-        cpu.reg(15) & !2
-    };
+    let base = if sp { cpu.r[13] } else { cpu.reg(15) & !2 };
     cpu.set_reg(rd, base.wrapping_add(offset));
 }
 

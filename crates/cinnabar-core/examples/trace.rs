@@ -7,14 +7,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "test-roms/gba-tests/arm/arm.gba".to_string());
-    let start = u32::from_str_radix(
-        std::env::args().nth(2).as_deref().unwrap_or("08001E00"),
-        16,
-    )?;
-    let end = u32::from_str_radix(
-        std::env::args().nth(3).as_deref().unwrap_or("08001F60"),
-        16,
-    )?;
+    let start = u32::from_str_radix(std::env::args().nth(2).as_deref().unwrap_or("08001E00"), 16)?;
+    let end = u32::from_str_radix(std::env::args().nth(3).as_deref().unwrap_or("08001F60"), 16)?;
     let limit: usize = std::env::args()
         .nth(4)
         .and_then(|s| s.parse().ok())
@@ -44,7 +38,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let r = system.cpu.regs();
             println!(
                 "regs r0={:08X} r1={:08X} r2={:08X} r3={:08X} r4={:08X} r5={:08X} r6={:08X} r7={:08X} r8={:08X} r9={:08X} r10={:08X} r11={:08X} r12={:08X} sp={:08X} lr={:08X} cpsr={:08X}",
-                r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], system.cpu.cpsr()
+                r[0],
+                r[1],
+                r[2],
+                r[3],
+                r[4],
+                r[5],
+                r[6],
+                r[7],
+                r[8],
+                r[9],
+                r[10],
+                r[11],
+                r[12],
+                r[13],
+                r[14],
+                system.cpu.cpsr()
             );
             break;
         }
@@ -57,7 +66,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let r = system.cpu.regs();
             println!(
                 "pc={pc:08X} op={op:08X} r0={:08X} r1={:08X} r2={:08X} r3={:08X} r4={:08X} r7={:08X} r11={:08X} r12={:08X} sp={:08X} lr={:08X} cpsr={:08X}",
-                r[0], r[1], r[2], r[3], r[4], r[7], r[11], r[12], r[13], r[14], system.cpu.cpsr()
+                r[0],
+                r[1],
+                r[2],
+                r[3],
+                r[4],
+                r[7],
+                r[11],
+                r[12],
+                r[13],
+                r[14],
+                system.cpu.cpsr()
             );
             printed += 1;
         }

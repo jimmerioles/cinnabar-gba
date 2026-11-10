@@ -57,16 +57,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         rgb.extend_from_slice(&[r, g, b]);
     }
 
-    image::save_buffer(
-        &out_path,
-        &rgb,
-        240,
-        160,
-        image::ColorType::Rgb8,
-    )?;
+    image::save_buffer(&out_path, &rgb, 240, 160, image::ColorType::Rgb8)?;
     println!(
-        "frames={frames} pc={:08X} vcount={} dispstat={:04X} frame_count={} line_cycles={} halted={} if={:04X} ie={:04X} ime={} unique_colors={} non_black={} -> {}",
+        "frames={frames} pc={:08X} r7={:08X} r12={:08X} vcount={} dispstat={:04X} frame_count={} line_cycles={} halted={} if={:04X} ie={:04X} ime={} unique_colors={} non_black={} -> {}",
         system.cpu.pc(),
+        system.cpu.regs()[7],
+        system.cpu.regs()[12],
         system.bus.ppu.vcount,
         system.bus.ppu.dispstat,
         system.bus.ppu.frame_count,

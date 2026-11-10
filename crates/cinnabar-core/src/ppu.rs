@@ -5,9 +5,7 @@
 //! frontend converts to RGB.
 
 use crate::irq::{self, Irq};
-use crate::{
-    CYCLES_PER_SCANLINE, SCANLINES, SCREEN_HEIGHT, SCREEN_WIDTH, VISIBLE_SCANLINES,
-};
+use crate::{CYCLES_PER_SCANLINE, SCANLINES, SCREEN_HEIGHT, SCREEN_WIDTH, VISIBLE_SCANLINES};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PpuEvents {
@@ -170,7 +168,7 @@ impl Ppu {
                 self.frame_count = self.frame_count.wrapping_add(1);
             }
 
-            let target = (self.dispstat >> 8) as u16;
+            let target = self.dispstat >> 8;
             if self.vcount == target {
                 self.dispstat |= 0x0004;
                 if self.dispstat & 0x0020 != 0 {
@@ -301,9 +299,7 @@ impl Ppu {
         let map_y = sy / 8;
 
         let block = (map_y / 32) * (width_tiles / 32) + (map_x / 32);
-        let entry_addr = screen_base
-            + block * 0x800
-            + ((map_y % 32) * 32 + (map_x % 32)) * 2;
+        let entry_addr = screen_base + block * 0x800 + ((map_y % 32) * 32 + (map_x % 32)) * 2;
         let entry = self.vram16(entry_addr);
 
         let tile = (entry & 0x3FF) as usize;
@@ -368,20 +364,16 @@ impl Ppu {
         if cnt & 0x2000 != 0 {
             tex_x = tex_x.rem_euclid(dimension as i32);
             tex_y = tex_y.rem_euclid(dimension as i32);
-        } else if tex_x < 0
-            || tex_y < 0
-            || tex_x >= dimension as i32
-            || tex_y >= dimension as i32
-        {
+        } else if tex_x < 0 || tex_y < 0 || tex_x >= dimension as i32 || tex_y >= dimension as i32 {
             return None;
         }
 
         let map_width = dimension / 8;
         let map_addr = screen_base + (tex_y as usize / 8) * map_width + (tex_x as usize / 8);
         let tile = self.vram8(map_addr) as usize;
-        let index = self.vram8(
-            char_base + tile * 64 + (tex_y as usize % 8) * 8 + (tex_x as usize % 8),
-        ) as usize;
+        let index = self
+            .vram8(char_base + tile * 64 + (tex_y as usize % 8) * 8 + (tex_x as usize % 8))
+            as usize;
         if index == 0 {
             return None;
         }
@@ -494,13 +486,10 @@ impl Ppu {
             let eight_bpp = attr0 & 0x2000 != 0;
             let palette_bank = ((attr2 >> 12) & 0xF) as usize;
             let (color_index, palette_index) = if eight_bpp {
-                let index = self.vram8(0x1_0000 + tile_num * 64 + (ty % 8) * 8 + (tx % 8))
-                    as usize;
+                let index = self.vram8(0x1_0000 + tile_num * 64 + (ty % 8) * 8 + (tx % 8)) as usize;
                 (index, index)
             } else {
-                let byte = self.vram8(
-                    0x1_0000 + tile_num * 32 + (ty % 8) * 4 + (tx % 8) / 2,
-                );
+                let byte = self.vram8(0x1_0000 + tile_num * 32 + (ty % 8) * 4 + (tx % 8) / 2);
                 let index = ((byte >> (((tx % 8) & 1) * 4)) & 0xF) as usize;
                 (index, palette_bank * 16 + index)
             };
@@ -538,11 +527,9 @@ impl Ppu {
             0x3F
         };
 
-        if self.dispcnt & 0x2000 != 0 && self.in_window(self.win0h, self.win0v, x, y) {
-            mask = self.winin & 0x3F;
-        } else if self.dispcnt & 0x4000 != 0
-            && self.in_window(self.win1h, self.win1v, x, y)
-        {
+        let in_win0 = self.dispcnt & 0x2000 != 0 && self.in_window(self.win0h, self.win0v, x, y);
+        let in_win1 = self.dispcnt & 0x4000 != 0 && self.in_window(self.win1h, self.win1v, x, y);
+        if in_win0 || in_win1 {
             mask = self.winin & 0x3F;
         }
         mask
@@ -641,10 +628,7 @@ impl Ppu {
 
     pub fn read_oam16(&self, addr: u32) -> u16 {
         let offset = (addr as usize) % self.oam.len();
-        u16::from_le_bytes([
-            self.oam[offset],
-            self.oam[(offset + 1) % self.oam.len()],
-        ])
+        u16::from_le_bytes([self.oam[offset], self.oam[(offset + 1) % self.oam.len()]])
     }
 
     pub fn read_oam32(&self, addr: u32) -> u32 {
@@ -799,10 +783,7 @@ impl Ppu {
 
     fn vram16(&self, offset: usize) -> u16 {
         let offset = offset % self.vram.len();
-        u16::from_le_bytes([
-            self.vram[offset],
-            self.vram[(offset + 1) % self.vram.len()],
-        ])
+        u16::from_le_bytes([self.vram[offset], self.vram[(offset + 1) % self.vram.len()]])
     }
 
     fn palette16(&self, index: usize) -> u16 {
@@ -831,8 +812,7 @@ fn insert_candidate(
     let better_than_best = match best {
         None => true,
         Some(current) => {
-            (candidate.priority, candidate.layer.rank())
-                < (current.priority, current.layer.rank())
+            (candidate.priority, candidate.layer.rank()) < (current.priority, current.layer.rank())
         }
     };
     if better_than_best {
@@ -872,23 +852,17 @@ fn sprite_size(shape: u16, size: u16) -> Option<(usize, usize)> {
 
 fn blend_alpha(src: u16, dst: u16, eva: u32, evb: u32) -> u16 {
     let r = ((((src & 0x1F) as u32) * eva + ((dst & 0x1F) as u32) * evb) / 16).min(31);
-    let g = (((((src >> 5) & 0x1F) as u32) * eva
-        + (((dst >> 5) & 0x1F) as u32) * evb)
-        / 16)
-        .min(31);
-    let b = (((((src >> 10) & 0x1F) as u32) * eva
-        + (((dst >> 10) & 0x1F) as u32) * evb)
-        / 16)
-        .min(31);
+    let g =
+        (((((src >> 5) & 0x1F) as u32) * eva + (((dst >> 5) & 0x1F) as u32) * evb) / 16).min(31);
+    let b =
+        (((((src >> 10) & 0x1F) as u32) * eva + (((dst >> 10) & 0x1F) as u32) * evb) / 16).min(31);
     (r as u16) | ((g as u16) << 5) | ((b as u16) << 10)
 }
 
 fn brightness_up(src: u16, evy: u32) -> u16 {
     let r = ((src & 0x1F) as u32 + (31 - (src & 0x1F) as u32) * evy / 16).min(31);
     let g = (((src >> 5) & 0x1F) as u32 + (31 - ((src >> 5) & 0x1F) as u32) * evy / 16).min(31);
-    let b = (((src >> 10) & 0x1F) as u32
-        + (31 - ((src >> 10) & 0x1F) as u32) * evy / 16)
-        .min(31);
+    let b = (((src >> 10) & 0x1F) as u32 + (31 - ((src >> 10) & 0x1F) as u32) * evy / 16).min(31);
     (r as u16) | ((g as u16) << 5) | ((b as u16) << 10)
 }
 

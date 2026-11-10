@@ -26,7 +26,10 @@ fn demo_rom_boots_and_renders() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>()
         .len();
-    assert!(distinct > 1000, "expected a gradient, got {distinct} colors");
+    assert!(
+        distinct > 1000,
+        "expected a gradient, got {distinct} colors"
+    );
 }
 
 #[test]
