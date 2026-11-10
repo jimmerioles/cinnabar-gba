@@ -6,6 +6,9 @@ pub struct DmaChannel {
     pub dst: u32,
     pub count: u16,
     pub control: u16,
+    pub(crate) src_base: u32,
+    pub(crate) dst_base: u32,
+    pub(crate) count_base: u16,
 }
 
 impl DmaChannel {
@@ -74,12 +77,48 @@ impl Dma {
             return;
         };
         match reg {
-            0x0 => ch.src = (ch.src & 0xFFFF_0000) | value as u32,
-            0x2 => ch.src = (ch.src & 0x0000_FFFF) | ((value as u32) << 16),
-            0x4 => ch.dst = (ch.dst & 0xFFFF_0000) | value as u32,
-            0x6 => ch.dst = (ch.dst & 0x0000_FFFF) | ((value as u32) << 16),
-            0x8 => ch.count = value,
-            0xA => ch.control = value,
+            0x0 => {
+                ch.src = (ch.src & 0xFFFF_0000) | value as u32;
+                if !ch.enabled() {
+                    ch.src_base = ch.src;
+                }
+            }
+            0x2 => {
+                ch.src = (ch.src & 0x0000_FFFF) | ((value as u32) << 16);
+                if !ch.enabled() {
+                    ch.src_base = ch.src;
+                }
+            }
+            0x4 => {
+                ch.dst = (ch.dst & 0xFFFF_0000) | value as u32;
+                if !ch.enabled() {
+                    ch.dst_base = ch.dst;
+                }
+            }
+            0x6 => {
+                ch.dst = (ch.dst & 0x0000_FFFF) | ((value as u32) << 16);
+                if !ch.enabled() {
+                    ch.dst_base = ch.dst;
+                }
+            }
+            0x8 => {
+                ch.count = value;
+                if !ch.enabled() {
+                    ch.count_base = value;
+                }
+            }
+            0xA => {
+                let was_enabled = ch.enabled();
+                ch.control = value;
+                if !was_enabled && ch.enabled() && ch.repeat() {
+                    // A fresh repeat transfer reloads the address/count
+                    // latches. Sound DMA in particular relies on this when
+                    // its VBlank handler restarts the channel.
+                    ch.src = ch.src_base;
+                    ch.dst = ch.dst_base;
+                    ch.count = ch.count_base;
+                }
+            }
             _ => {}
         }
     }
@@ -102,4 +141,51 @@ fn channel_reg(offset: u16) -> (usize, u16) {
     let index = (relative / 12) as usize;
     let reg = relative % 12;
     (index.min(3), reg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeat_reloads_source_when_reenabled() {
+        let mut dma = Dma::default();
+        dma.write16(0x0BC, 0x0008);
+        dma.write16(0x0BE, 0x0200);
+        dma.write16(0x0C0, 0x00A0);
+        dma.write16(0x0C2, 0x0400);
+        dma.write16(0x0C4, 0x0004);
+        dma.write16(0x0C6, 0xB600);
+
+        let channel = &dma.channels[1];
+        assert_eq!(channel.src, 0x0200_0008);
+        assert_eq!(channel.dst, 0x0400_00A0);
+        assert_eq!(channel.count, 4);
+
+        // Simulate the source advancing during a sound-DMA refill.
+        dma.channels[1].src += 0x20;
+        dma.write16(0x0C6, 0x0440);
+        assert_eq!(dma.channels[1].src, 0x0200_0028);
+
+        // The VBlank handler restarts the channel; it must wrap to the
+        // latched source rather than running linearly through EWRAM.
+        dma.write16(0x0C6, 0xB600);
+        assert_eq!(dma.channels[1].src, 0x0200_0008);
+        assert_eq!(dma.channels[1].count, 4);
+    }
+
+    #[test]
+    fn one_shot_channels_keep_their_advanced_source() {
+        let mut dma = Dma::default();
+        dma.write16(0x0BC, 0x0008);
+        dma.write16(0x0BE, 0x0200);
+        dma.write16(0x0C4, 0x0004);
+        dma.write16(0x0C6, 0x8400);
+
+        dma.channels[1].src += 0x20;
+        dma.write16(0x0C6, 0x0400);
+        dma.write16(0x0C6, 0x8400);
+
+        assert_eq!(dma.channels[1].src, 0x0200_0028);
+    }
 }

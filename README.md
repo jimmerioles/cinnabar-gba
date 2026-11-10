@@ -13,9 +13,10 @@
   <code>450+ fps headless</code> · <code>full ARM + Thumb validation</code> · <code>no BIOS required</code>
 </p>
 
-> **Why “Cinnabar”?** Cinnabar is a red mineral — and a nod to Cinnabar Island
-> from Pokémon Red and Blue, and their GBA remakes FireRed and LeafGreen. The
-> name is a tribute, not an official association.
+> **Why “Cinnabar”?** Cinnabar is a red mineral — historically ground into
+> vermilion pigment — and a nod to Cinnabar Island from Pokémon Red and Blue,
+> and their GBA remakes FireRed and LeafGreen. The name is a tribute, not an
+> official association.
 
 Cinnabar GBA pairs a headless, deterministic emulator core with a small native
 frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
@@ -103,18 +104,21 @@ cargo run -p cinnabar-frontend -- /path/to/game.gba --info
 
 | Key | GBA |
 |---|---|
-| `Z` | A |
-| `X` | B |
+| `A` or `Z` | A |
+| `S` or `X` | B |
 | `Enter` | Start |
 | `Backspace` | Select |
 | Arrow keys | D-pad |
-| `A` | L |
-| `S` | R |
+| `Q` | L |
+| `E` | R |
 | `Esc` | Quit |
 | `F1` | Pause |
 | `F2` | Fast-forward |
 | `F5` | Screenshot to `screenshots/` |
 | `F11` | Fullscreen |
+
+Celeste Classic uses the D-pad, A, B, Start, and Select. The L and R shoulder
+buttons are only used by games that support them.
 
 Saves are written next to the ROM as `<rom>.sav` (or to `--save <path>`), and
 loaded automatically on the next run.
@@ -420,8 +424,8 @@ The honest compatibility picture:
 - BIOS internals are HLE, not a cycle-accurate BIOS. The `bios` test ROM is not
   supported by design.
 - EEPROM saves are not implemented yet.
-- Audio DMA timing is approximated, and high square/noise frequencies alias at
-  48 kHz.
+- Sound DMA refill timing is approximated; the FIFO itself is clocked by Timer
+  0/1. High square/noise frequencies alias at 48 kHz.
 - Mosaic and a few PPU edge cases are register-complete but not fully rendered.
 - No save states, debugger, link cable, netplay, or shaders yet.
 - Commercial game compatibility is still a work in progress. The CPU, memory,

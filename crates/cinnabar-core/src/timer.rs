@@ -39,7 +39,9 @@ pub struct Timers {
 }
 
 impl Timers {
-    pub fn step(&mut self, cycles: u32, irq: &mut Irq) {
+    /// Advance all timers, returning the number of overflows for each one.
+    pub fn step(&mut self, cycles: u32, irq: &mut Irq) -> [u32; 4] {
+        let mut overflows = [0; 4];
         for i in 0..4 {
             if !self.timers[i].enabled() || self.timers[i].cascade() {
                 continue;
@@ -52,11 +54,16 @@ impl Timers {
                 self.timers[i].accumulator -= prescaler;
                 ticks += 1;
             }
-            let overflows = self.advance(i, ticks);
-            for _ in 0..overflows {
-                self.cascade_from(i, irq);
+            let count = self.advance(i, ticks);
+            for _ in 0..count {
+                self.cascade_from(i, irq, &mut overflows);
             }
         }
+        overflows
+    }
+
+    pub fn enabled(&self, index: usize) -> bool {
+        self.timers.get(index).is_some_and(|timer| timer.enabled())
     }
 
     /// Advance a timer by `ticks`; returns the number of overflows.
@@ -81,13 +88,14 @@ impl Timers {
         overflows
     }
 
-    fn cascade_from(&mut self, index: usize, irq: &mut Irq) {
+    fn cascade_from(&mut self, index: usize, irq: &mut Irq, overflows: &mut [u32; 4]) {
+        overflows[index] += 1;
         if index < 3 {
             let next = index + 1;
             if self.timers[next].enabled() && self.timers[next].cascade() {
-                let overflows = self.advance(next, 1);
-                if overflows > 0 {
-                    self.cascade_from(next, irq);
+                let count = self.advance(next, 1);
+                for _ in 0..count {
+                    self.cascade_from(next, irq, overflows);
                 }
             }
         }
@@ -129,5 +137,22 @@ impl Timers {
             timer.counter = timer.reload;
             timer.accumulator = 0;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reports_the_number_of_overflows() {
+        let mut timers = Timers::default();
+        timers.write_reload(0, 0xFFFE);
+        timers.write_control(0, 0x80);
+        let mut irq = Irq::default();
+
+        let overflows = timers.step(2, &mut irq);
+        assert_eq!(overflows, [1, 0, 0, 0]);
+        assert_eq!(timers.read_counter(0), 0xFFFE);
     }
 }

@@ -29,4 +29,13 @@ fn keypad_presses_light_up_the_indicators() {
     system.set_keys(keys::START);
     let _ = system.run_frames(2);
     assert_eq!(pixel(&system, 100, 137), 0x7FFF);
+
+    // L and R shoulder indicators turn green.
+    system.set_keys(keys::L);
+    let _ = system.run_frames(2);
+    assert_eq!(pixel(&system, 16, 116), 0x03E0);
+
+    system.set_keys(keys::R);
+    let _ = system.run_frames(2);
+    assert_eq!(pixel(&system, 192, 116), 0x03E0);
 }

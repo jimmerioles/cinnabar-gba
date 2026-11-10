@@ -78,6 +78,8 @@ wait_set:
     RECT 144, 84, 20, 20       @ B
     RECT 88, 132, 24, 10       @ start
     RECT 120, 132, 24, 10      @ select
+    RECT 16, 116, 32, 12       @ L
+    RECT 192, 116, 32, 12      @ R
 
     @ D-pad, green when pressed.
     ldr r8, =0x03E0
@@ -123,11 +125,26 @@ start_select:
     beq start_on
     tst r9, #0x04
     beq select_on
-    b loop
+    b shoulders
 
 start_on:
     RECT 88, 132, 24, 10
     b loop
 select_on:
     RECT 120, 132, 24, 10
+    b loop
+
+shoulders:
+    ldr r8, =0x03E0
+    tst r9, #0x200
+    beq l_on
+    tst r9, #0x100
+    beq r_on
+    b loop
+
+l_on:
+    RECT 16, 116, 32, 12
+    b loop
+r_on:
+    RECT 192, 116, 32, 12
     b loop

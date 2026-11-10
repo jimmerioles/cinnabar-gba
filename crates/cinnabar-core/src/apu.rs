@@ -798,12 +798,56 @@ impl Apu {
         }
     }
 
-    /// Advance the APU by `cycles` CPU cycles.
+    /// Advance the APU by `cycles` CPU cycles using the standalone 32.768 kHz
+    /// FIFO clock. The bus uses [`Apu::step_with_timers`] instead.
     pub fn step(&mut self, cycles: u32) {
+        self.step_with_timers(cycles, [0; 4], false, false);
+    }
+
+    /// Advance the APU and clock the direct-sound FIFOs from the selected
+    /// hardware timers. If a selected timer is stopped, fall back to the
+    /// fixed-rate FIFO clock so standalone APU users still hear sound.
+    pub fn step_with_timers(
+        &mut self,
+        cycles: u32,
+        timer_overflows: [u32; 4],
+        timer0_running: bool,
+        timer1_running: bool,
+    ) {
         if cycles == 0 {
             return;
         }
 
+        let mut legacy_fifo = [false; 2];
+        if self.master_enable {
+            let soundcnt_h = self.soundcnt_h();
+            let fifo_a_timer = ((soundcnt_h >> 10) & 1) as usize;
+            let fifo_b_timer = ((soundcnt_h >> 14) & 1) as usize;
+            let running = [timer0_running, timer1_running];
+            let fifo_a_sixteen = soundcnt_h & 0x0010 != 0;
+            let fifo_b_sixteen = soundcnt_h & 0x0020 != 0;
+
+            if running[fifo_a_timer] {
+                for _ in 0..timer_overflows[fifo_a_timer] {
+                    self.fifo_a.next_sample(fifo_a_sixteen);
+                }
+            } else {
+                legacy_fifo[0] = true;
+            }
+
+            if running[fifo_b_timer] {
+                for _ in 0..timer_overflows[fifo_b_timer] {
+                    self.fifo_b.next_sample(fifo_b_sixteen);
+                }
+            } else {
+                legacy_fifo[1] = true;
+            }
+        }
+
+        self.step_common(cycles, legacy_fifo);
+    }
+
+    fn step_common(&mut self, cycles: u32, legacy_fifo: [bool; 2]) {
         self.advance_frame_sequencer(cycles);
 
         self.sample_accumulator += u64::from(cycles) * u64::from(self.sample_rate);
@@ -817,7 +861,7 @@ impl Apu {
             let channel_cycles = (self.channel_accumulator / u64::from(self.sample_rate)) as u32;
             self.channel_accumulator %= u64::from(self.sample_rate);
 
-            self.generate_sample(channel_cycles);
+            self.generate_sample(channel_cycles, legacy_fifo);
         }
     }
 
@@ -874,16 +918,22 @@ impl Apu {
         self.ch4.clock_envelope();
     }
 
-    fn generate_sample(&mut self, channel_cycles: u32) {
+    fn generate_sample(&mut self, channel_cycles: u32, legacy_fifo: [bool; 2]) {
         if self.master_enable {
             self.ch1.tick(channel_cycles);
             self.ch2.tick(channel_cycles);
             self.ch3.tick(channel_cycles);
             self.ch4.tick(channel_cycles);
 
+            // Standalone APU users do not have a timer to clock the FIFOs.
+            // The bus clocks them from Timer 0/1 instead.
             let soundcnt_h = self.soundcnt_h();
-            self.fifo_a.tick(channel_cycles, soundcnt_h & 0x0010 != 0);
-            self.fifo_b.tick(channel_cycles, soundcnt_h & 0x0020 != 0);
+            if legacy_fifo[0] {
+                self.fifo_a.tick(channel_cycles, soundcnt_h & 0x0010 != 0);
+            }
+            if legacy_fifo[1] {
+                self.fifo_b.tick(channel_cycles, soundcnt_h & 0x0020 != 0);
+            }
         }
 
         let (left, right) = self.mix();
@@ -1271,6 +1321,30 @@ mod tests {
         apu.step(4_000);
         let samples = apu.take_samples();
         assert!(peak(&samples) > 0.1, "16-bit FIFO sample should be audible");
+    }
+
+    #[test]
+    fn timer_overflows_clock_the_fifo() {
+        let mut apu = Apu::new();
+        apu.write16(0x24, 0x0080);
+        // CH A to both sides, 100% volume, Timer 0.
+        apu.write16(REG_SOUNDCNT_H as u16, 0x0304);
+        apu.write16(0x40, 0x7F7F);
+        apu.write16(0x40, 0x7F7F);
+        assert_eq!(apu.fifo_len(0), 4);
+
+        // A stopped timer must not drain the FIFO.
+        apu.step_with_timers(512, [0; 4], false, false);
+        assert_eq!(apu.fifo_len(0), 4);
+
+        // One Timer 0 overflow pops one byte and generates audible output.
+        apu.step_with_timers(512, [1, 0, 0, 0], true, false);
+        assert_eq!(apu.fifo_len(0), 3);
+        let samples = apu.take_samples();
+        assert!(
+            peak(&samples) > 0.1,
+            "timer-clocked sample should be audible"
+        );
     }
 
     #[test]

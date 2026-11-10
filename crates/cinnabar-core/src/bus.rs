@@ -123,8 +123,13 @@ impl Bus {
 
     fn step_now(&mut self) {
         let cycles = std::mem::take(&mut self.pending_cycles);
-        self.timers.step(cycles, &mut self.irq);
-        self.apu.step(cycles);
+        let timer_overflows = self.timers.step(cycles, &mut self.irq);
+        self.apu.step_with_timers(
+            cycles,
+            timer_overflows,
+            self.timers.enabled(0),
+            self.timers.enabled(1),
+        );
         self.service_audio_dma();
         let events = self.ppu.step(cycles, &mut self.irq);
         if events.hblank {
@@ -231,12 +236,10 @@ impl Bus {
         let repeat = channel.repeat() && channel.timing() != 0;
         let ch = &mut self.dma.channels[index];
         if repeat {
-            ch.src = channel.src;
-            ch.dst = channel.dst;
-            ch.count = channel.count;
-            if channel.dest_control() == 3 {
-                ch.dst = channel.dst;
-            }
+            // The next trigger starts from the reload latches.
+            ch.src = ch.src_base;
+            ch.dst = ch.dst_base;
+            ch.count = ch.count_base;
         } else {
             ch.control &= !0x8000;
         }

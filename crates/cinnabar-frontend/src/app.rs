@@ -359,16 +359,16 @@ impl Drop for App {
 
 fn key_bit(code: KeyCode) -> Option<u16> {
     Some(match code {
-        KeyCode::KeyZ => keys::A,
-        KeyCode::KeyX => keys::B,
+        KeyCode::KeyZ | KeyCode::KeyA => keys::A,
+        KeyCode::KeyX | KeyCode::KeyS => keys::B,
         KeyCode::Enter => keys::START,
         KeyCode::Backspace => keys::SELECT,
         KeyCode::ArrowUp => keys::UP,
         KeyCode::ArrowDown => keys::DOWN,
         KeyCode::ArrowLeft => keys::LEFT,
         KeyCode::ArrowRight => keys::RIGHT,
-        KeyCode::KeyA => keys::L,
-        KeyCode::KeyS => keys::R,
+        KeyCode::KeyQ => keys::L,
+        KeyCode::KeyE => keys::R,
         _ => return None,
     })
 }
@@ -379,7 +379,9 @@ mod tests {
 
     #[test]
     fn maps_the_documented_keyboard_controls() {
+        assert_eq!(key_bit(KeyCode::KeyA), Some(keys::A));
         assert_eq!(key_bit(KeyCode::KeyZ), Some(keys::A));
+        assert_eq!(key_bit(KeyCode::KeyS), Some(keys::B));
         assert_eq!(key_bit(KeyCode::KeyX), Some(keys::B));
         assert_eq!(key_bit(KeyCode::Enter), Some(keys::START));
         assert_eq!(key_bit(KeyCode::Backspace), Some(keys::SELECT));
@@ -387,8 +389,8 @@ mod tests {
         assert_eq!(key_bit(KeyCode::ArrowDown), Some(keys::DOWN));
         assert_eq!(key_bit(KeyCode::ArrowLeft), Some(keys::LEFT));
         assert_eq!(key_bit(KeyCode::ArrowRight), Some(keys::RIGHT));
-        assert_eq!(key_bit(KeyCode::KeyA), Some(keys::L));
-        assert_eq!(key_bit(KeyCode::KeyS), Some(keys::R));
+        assert_eq!(key_bit(KeyCode::KeyQ), Some(keys::L));
+        assert_eq!(key_bit(KeyCode::KeyE), Some(keys::R));
         assert_eq!(key_bit(KeyCode::Escape), None);
     }
 }
