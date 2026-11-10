@@ -1,21 +1,27 @@
-# Cinnabar GBA
+<p align="center">
+  <img src="docs/brand/banner.png" alt="Cinnabar GBA — a fast, clean-room Game Boy Advance emulator written in Rust" width="100%">
+</p>
 
-[![CI](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg)](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml"><img src="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-FF3B2F" alt="Release v0.1.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
 
-**A fast, clean-room Game Boy Advance emulator in Rust.**
+<p align="center">
+  <strong>Cinnabar GBA</strong> is a fast, clean-room Game Boy Advance emulator written in Rust.<br>
+  <code>450+ fps headless</code> · <code>full ARM + Thumb validation</code> · <code>no BIOS required</code>
+</p>
 
-Cinnabar GBA is split into a headless, deterministic emulator core and a small
-native frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
+> **Why “Cinnabar”?** Cinnabar is a red mineral — and a nod to Cinnabar Island
+> from Pokémon Red and Blue, and their GBA remakes FireRed and LeafGreen. The
+> name is a tribute, not an official association.
+
+Cinnabar GBA pairs a headless, deterministic emulator core with a small native
+frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
 renders modes 0–5, plays PSG and DMA sound, and persists SRAM/Flash saves. No
 Nintendo BIOS image is required: the common BIOS SWI calls are implemented as
 HLE.
-
-![Cinnabar GBA demo](docs/demo.png)
-
-| Tiled mode + sprite + alpha blending | Full ARM test suite |
-|---|---|
-| ![Tiled demo](docs/ppu-tiled.png) | ![ARM tests passed](docs/tests-arm.png) |
 
 ## The highlights
 
@@ -361,6 +367,17 @@ The main optimizations are:
 - Fat LTO and `codegen-units = 1`.
 - A headless core with no windowing or audio dependencies.
 
+## Screenshots
+
+The bundled demo cartridge, a tiled PPU scene with an alpha-blended sprite, and
+the ARM test suite:
+
+![Cinnabar GBA demo](docs/demo.png)
+
+| Tiled mode + sprite + alpha blending | Full ARM test suite |
+|---|---|
+| ![Tiled demo](docs/ppu-tiled.png) | ![ARM tests passed](docs/tests-arm.png) |
+
 ## Development
 
 ```bash
@@ -413,16 +430,6 @@ The honest compatibility picture:
 
 See [`ROADMAP.md`](ROADMAP.md) for the next milestones.
 
-## Why “Cinnabar”?
-
-Cinnabar is a red mineral, and Cinnabar Island is a memorable location in the
-Pokémon games that introduced many of us to the GBA era. The name is a small nod
-to that history, not an official association. The `GBA` suffix is deliberate: it
-tells you exactly what the project is and keeps the name searchable.
-
-Cinnabar GBA is an independent clean-room emulator. It is not affiliated with
-Nintendo, Game Freak, or The Pokémon Company.
-
 ## Legal
 
 Cinnabar GBA contains **no Nintendo ROMs and no Nintendo BIOS**. The demo cartridges
@@ -430,8 +437,9 @@ are generated from the assembly in this repository. You must supply your own
 legally dumped ROMs and BIOS if you want to use them. `gba-tests` is fetched
 separately and remains under its own license.
 
-Game Boy Advance is a trademark of Nintendo. Cinnabar GBA is not affiliated with or
-endorsed by Nintendo.
+Game Boy Advance is a trademark of Nintendo. Cinnabar GBA is an independent
+clean-room emulator and is not affiliated with or endorsed by Nintendo, Game
+Freak, or The Pokémon Company.
 
 ## Credits
 
