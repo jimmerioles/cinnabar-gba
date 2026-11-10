@@ -1,8 +1,8 @@
 use cinnabar_core::{Cartridge, System};
+use cinnabar_testrom::DEMO_ROM;
 
 fn demo_system() -> System {
-    let rom = include_bytes!("fixtures/demo.gba").to_vec();
-    let cart = Cartridge::new(rom);
+    let cart = Cartridge::new(DEMO_ROM.to_vec());
     System::new(cart)
 }
 
@@ -31,8 +31,7 @@ fn demo_rom_boots_and_renders() {
 
 #[test]
 fn cartridge_header_is_parsed() {
-    let rom = include_bytes!("fixtures/demo.gba").to_vec();
-    let cart = Cartridge::new(rom);
+    let cart = Cartridge::new(DEMO_ROM.to_vec());
     assert_eq!(cart.title, "CINNABAR");
     assert_eq!(cart.game_code, "CINB");
 }

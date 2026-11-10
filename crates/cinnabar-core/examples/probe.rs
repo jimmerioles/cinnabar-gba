@@ -1,8 +1,8 @@
 use cinnabar_core::{Cartridge, System};
+use cinnabar_testrom::DEMO_ROM;
 
 fn main() {
-    let rom = include_bytes!("../tests/fixtures/demo.gba").to_vec();
-    let cart = Cartridge::new(rom);
+    let cart = Cartridge::new(DEMO_ROM.to_vec());
     let mut system = System::new(cart);
 
     for frame in 0..4 {

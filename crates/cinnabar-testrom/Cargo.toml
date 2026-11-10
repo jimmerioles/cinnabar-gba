@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Tiny ARM/Thumb assembler and test ROM builder for Cinnabar"
+description = "Test ROMs and demo cartridges for Cinnabar"
 
 [dependencies]
-cinnabar-core.workspace = true
