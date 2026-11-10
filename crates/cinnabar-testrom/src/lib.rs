@@ -22,6 +22,9 @@ pub const IRQ_DMA_ROM: &[u8] = include_bytes!("../roms/irq_dma.gba");
 /// A VBlankIntrWait / halt-wake cartridge.
 pub const HALT_ROM: &[u8] = include_bytes!("../roms/halt.gba");
 
+/// A keypad test screen: each button lights up while held.
+pub const INPUT_ROM: &[u8] = include_bytes!("../roms/input.gba");
+
 /// Owned copy, convenient for `Cartridge::new`.
 pub fn demo_rom() -> Vec<u8> {
     DEMO_ROM.to_vec()
@@ -45,6 +48,11 @@ pub fn irq_dma_rom() -> Vec<u8> {
 /// Owned copy of the halt/wake cartridge.
 pub fn halt_rom() -> Vec<u8> {
     HALT_ROM.to_vec()
+}
+
+/// Owned copy of the keypad test cartridge.
+pub fn input_rom() -> Vec<u8> {
+    INPUT_ROM.to_vec()
 }
 
 /// A quick sanity check on the embedded ROM's header.
@@ -109,5 +117,12 @@ mod tests {
         assert!(HALT_ROM.len() >= 0x8000);
         assert_eq!(&HALT_ROM[0xA0..0xA8], b"CINNABAR");
         assert!(header_ok(HALT_ROM));
+    }
+
+    #[test]
+    fn input_rom_has_a_valid_header() {
+        assert!(INPUT_ROM.len() >= 0x8000);
+        assert_eq!(&INPUT_ROM[0xA0..0xA8], b"CINNABAR");
+        assert!(header_ok(INPUT_ROM));
     }
 }

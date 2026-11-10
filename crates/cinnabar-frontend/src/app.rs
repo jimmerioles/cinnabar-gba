@@ -1,12 +1,12 @@
 //! The interactive winit + softbuffer application.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use cinnabar_core::keypad::keys;
-use cinnabar_core::{SCREEN_HEIGHT, SCREEN_WIDTH, System};
+use cinnabar_core::{Cartridge, SCREEN_HEIGHT, SCREEN_WIDTH, System};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyEvent, WindowEvent};
@@ -117,6 +117,7 @@ impl App {
         self.system.set_keys(self.keys);
         self.run_frame();
         self.next_frame = Instant::now() + FRAME_PERIOD;
+        self.update_window_title();
         window.request_redraw();
     }
 
@@ -127,9 +128,57 @@ impl App {
         }
     }
 
+    fn update_window_title(&self) {
+        let mut title = self.config.title.clone();
+        if self.paused {
+            title.push_str(" — paused");
+        }
+        if self.fast_forward {
+            title.push_str(" — fast-forward");
+        }
+        if let Some(window) = &self.window {
+            window.set_title(&title);
+        }
+    }
+
     fn toggle_pause(&mut self) {
         self.paused = !self.paused;
         self.next_frame = Instant::now() + FRAME_PERIOD;
+        self.update_window_title();
+    }
+
+    fn load_rom(&mut self, path: PathBuf) {
+        if let Err(error) = self.try_load_rom(&path) {
+            eprintln!("cinnabar: failed to load {}: {error:#}", path.display());
+        }
+    }
+
+    fn try_load_rom(&mut self, path: &Path) -> Result<()> {
+        self.persist_save();
+        let rom = storage::read_rom(path)?;
+        let cart = Cartridge::new(rom);
+        let title = crate::cli::window_title(&cart, Some(path));
+        let save_path = storage::resolve_save_path(None, Some(path));
+        let mut system = System::new(cart);
+        if let Err(error) = storage::load_save(&mut system, save_path.as_deref()) {
+            eprintln!("cinnabar: warning: {error:#}");
+        }
+
+        self.system = system;
+        self.config.title = title;
+        self.config.save_path = save_path;
+        self.keys = 0;
+        self.system.set_keys(0);
+        self.paused = false;
+        self.fast_forward = false;
+        self.next_frame = Instant::now() + FRAME_PERIOD;
+        self.update_window_title();
+        self.run_frame();
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+        println!("cinnabar: loaded {}", path.display());
+        Ok(())
     }
 
     fn take_screenshot(&mut self) {
@@ -174,7 +223,10 @@ impl App {
             match code {
                 KeyCode::Escape => return true,
                 KeyCode::F1 => self.toggle_pause(),
-                KeyCode::F2 => self.fast_forward = !self.fast_forward,
+                KeyCode::F2 => {
+                    self.fast_forward = !self.fast_forward;
+                    self.update_window_title();
+                }
                 KeyCode::F5 => self.take_screenshot(),
                 KeyCode::F11 => self.toggle_fullscreen(),
                 _ => {}
@@ -218,6 +270,7 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::CloseRequested => self.exit(event_loop),
             WindowEvent::Destroyed => event_loop.exit(),
+            WindowEvent::DroppedFile(path) => self.load_rom(path),
             WindowEvent::Resized(size) => {
                 if let Some(surface) = &mut self.surface {
                     if let Err(error) = surface.resize(size.width, size.height) {

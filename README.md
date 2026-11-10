@@ -53,10 +53,13 @@ sudo apt install build-essential pkg-config libasound2-dev \
 Then:
 
 ```bash
+cargo run -p cinnabar-frontend -- --selftest
+cargo run -p cinnabar-frontend -- --list-builtins
 cargo run -p cinnabar-frontend -- --demo
 ```
 
-That runs the bundled logo demo. To play a ROM you own:
+`--selftest` needs no ROM and no window. `--demo` runs the bundled logo. To play
+a ROM you own:
 
 ```bash
 cargo run -p cinnabar-frontend -- /path/to/game.gba
@@ -101,6 +104,103 @@ cargo run -p cinnabar-frontend -- /path/to/game.gba --info
 
 Saves are written next to the ROM as `<rom>.sav` (or to `--save <path>`), and
 loaded automatically on the next run.
+
+## Manual testing without a ROM
+
+Cinnabar ships with test cartridges, so you do not need a commercial ROM to
+check that the emulator works.
+
+### 1. The one-command check
+
+```bash
+cargo run -p cinnabar-frontend -- --selftest
+```
+
+```text
+Cinnabar self-test
+  [ok]   logo demo: 3 colors, red C on dark blue
+  [ok]   tiled PPU: 6 colors, blended sprite
+  [ok]   keypad: A, right and Start indicators
+  [ok]   DMA + IRQ: 8 VBlank, 34 timer IRQs
+  [ok]   VBlankIntrWait: 8 wake-ups
+  [ok]   mode 3 gradient: 38400 colors
+all 6 checks passed
+```
+
+This exercises the CPU, PPU, keypad, DMA, timers, IRQs, `VBlankIntrWait`, and
+the bundled ROMs without opening a window.
+
+### 2. Check the keyboard
+
+```bash
+cargo run -p cinnabar-frontend -- --builtin input
+```
+
+![Input test](docs/input-test.png)
+
+The left cross is the D-pad, the boxes on the right are A and B, and the two
+small bars at the bottom are Start and Select. Hold a key and the matching box
+turns green, red, or white. If nothing lights up, click the window to focus it,
+then try again.
+
+### 3. Check tiled rendering and sprite blending
+
+```bash
+cargo run -p cinnabar-frontend -- --builtin tiled
+```
+
+You should see a checkerboard of red, white, green, and blue 32×32 blocks, plus
+a pink 8×8 sprite near the center that is alpha-blended over the tile below it.
+
+### 4. Run open-source test ROMs
+
+```bash
+./tools/fetch-test-roms.sh
+cargo run -p cinnabar-frontend -- test-roms/gba-tests/ppu/hello.gba
+cargo run -p cinnabar-frontend -- test-roms/gba-tests/arm/arm.gba
+```
+
+The first should show `Hello world!`; the second should show
+`All tests passed`.
+
+### 5. Try your own ROM
+
+Drag a `.gba` file onto the Cinnabar window, or pass it on the command line.
+The window title and save path update when a ROM is dropped.
+
+### Built-in cartridges
+
+```bash
+cargo run -p cinnabar-frontend -- --list-builtins
+```
+
+| Name | What it shows |
+|---|---|
+| `logo` | Red Cinnabar C on a dark blue field |
+| `tiled` | Mode 0 tiles, a sprite, and alpha blending |
+| `input` | Keypad test screen |
+| `irq` | DMA3 fill + timer and VBlank interrupts |
+| `halt` | `VBlankIntrWait` halt/wake |
+| `gradient` | Mode 3 color test pattern |
+
+`--demo` is shorthand for `--builtin logo`. Any built-in works headless:
+
+```bash
+cargo run -p cinnabar-frontend -- --builtin tiled \
+  --headless --frames 3 --screenshot tiled.png
+```
+
+### If something does not work
+
+- **"no ROM given"**: use `--demo`, `--builtin <name>`, or `--selftest`.
+- **No window**: run `--selftest` or `--headless` to confirm the core works,
+  then check that `WAYLAND_DISPLAY` or `DISPLAY` is set in your graphical
+  session.
+- **No audio**: Cinnabar prints a warning and keeps running silently.
+- **Window too small**: start with `--scale 4`.
+- **Slow**: build a release binary with `cargo run --release -p cinnabar-frontend`.
+- **Keyboard does nothing**: click the window to focus it and try
+  `--builtin input`.
 
 ## Architecture
 
@@ -162,6 +262,7 @@ all selected gba-tests validations passed
 | Mode 0 tiles + sprite + alpha blending | **PASS** (demo + integration test) |
 | DMA + timer/VBlank IRQ | **PASS** (integration test) |
 | VBlankIntrWait / halt-wake | **PASS** (integration test) |
+| Keypad test screen | **PASS** (integration test + `--builtin input`) |
 | BIOS internals | Not applicable: Cinnabar uses HLE instead of a real BIOS |
 | EEPROM saves | Not implemented |
 | `unsafe` suite | Test 2 is documented upstream as failing on real hardware; it is not part of our validation |
@@ -205,6 +306,8 @@ Or use the `Makefile`:
 make test
 make lint
 make validate
+make selftest
+make input
 make demo
 ```
 

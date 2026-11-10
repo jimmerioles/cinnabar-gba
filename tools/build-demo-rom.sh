@@ -8,7 +8,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-for name in demo logo tiled irq_dma halt; do
+for name in demo logo tiled irq_dma halt input; do
     src="$root/crates/cinnabar-testrom/roms/$name.S"
     out="$root/crates/cinnabar-testrom/roms/$name.gba"
 

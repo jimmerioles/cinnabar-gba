@@ -1,4 +1,4 @@
-.PHONY: build run demo test lint fmt validate roms demo-rom clean
+.PHONY: build run demo selftest builtins input test lint fmt validate roms demo-rom clean
 
 CARGO ?= cargo
 ROM ?=
@@ -11,6 +11,15 @@ run:
 
 demo:
 	$(CARGO) run -p cinnabar-frontend -- --demo
+
+selftest:
+	$(CARGO) run -p cinnabar-frontend -- --selftest
+
+builtins:
+	$(CARGO) run -p cinnabar-frontend -- --list-builtins
+
+input:
+	$(CARGO) run -p cinnabar-frontend -- --builtin input
 
 test:
 	$(CARGO) test --workspace

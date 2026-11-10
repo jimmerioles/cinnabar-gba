@@ -18,9 +18,21 @@ pub struct Args {
     #[arg(value_name = "ROM")]
     pub rom: Option<PathBuf>,
 
-    /// Run the bundled Cinnabar demo ROM instead of a file.
-    #[arg(long, conflicts_with = "rom")]
+    /// Run the bundled logo demo ROM instead of a file.
+    #[arg(long, conflicts_with_all = ["rom", "builtin"])]
     pub demo: bool,
+
+    /// Run a bundled cartridge by name (see --list-builtins).
+    #[arg(long, value_name = "NAME", conflicts_with_all = ["rom", "demo"])]
+    pub builtin: Option<String>,
+
+    /// List the bundled cartridges and exit.
+    #[arg(long, conflicts_with_all = ["rom", "demo", "builtin"])]
+    pub list_builtins: bool,
+
+    /// Run the built-in self-test without opening a window.
+    #[arg(long, conflicts_with_all = ["rom", "demo", "builtin"])]
+    pub selftest: bool,
 
     /// Run without a window (for CI and screenshots).
     #[arg(long)]
@@ -50,8 +62,11 @@ pub struct Args {
 impl Args {
     /// Reject combinations that cannot produce a sensible run.
     pub fn validate(&self) -> Result<()> {
-        if self.rom.is_none() && !self.demo {
-            bail!("no ROM given: pass a ROM path or --demo");
+        if self.list_builtins || self.selftest {
+            return Ok(());
+        }
+        if self.rom.is_none() && !self.demo && self.builtin.is_none() {
+            bail!("no ROM given: pass a ROM path, --demo, --builtin <name>, or --selftest");
         }
         if self.scale == 0 {
             bail!("--scale must be at least 1");
@@ -59,10 +74,27 @@ impl Args {
         Ok(())
     }
 
-    /// The ROM file path, if the demo ROM was not selected.
+    /// The ROM file path, if a bundled cartridge was not selected.
     pub fn rom_path(&self) -> Option<&Path> {
-        if self.demo { None } else { self.rom.as_deref() }
+        if self.demo || self.builtin.is_some() {
+            None
+        } else {
+            self.rom.as_deref()
+        }
     }
+}
+
+/// Print the bundled cartridges and what they exercise.
+pub fn print_builtins() {
+    println!("Bundled cartridges:");
+    println!("  logo      Red Cinnabar C on a dark blue field");
+    println!("  tiled     Mode 0 tiles, a sprite, and alpha blending");
+    println!("  input     Keypad test screen: press keys and watch boxes light up");
+    println!("  irq       DMA3 fill + timer and VBlank interrupts");
+    println!("  halt      VBlankIntrWait halt/wake");
+    println!("  gradient  Mode 3 color test pattern");
+    println!();
+    println!("Run one with: cinnabar --builtin <name>");
 }
 
 /// Print the cartridge header fields the frontend understands.
@@ -133,6 +165,23 @@ mod tests {
         let args = Args::try_parse_from(["cinnabar", "--demo"]).expect("valid flags");
         assert!(args.validate().is_ok());
         assert_eq!(args.rom_path(), None);
+    }
+
+    #[test]
+    fn accepts_a_builtin_and_selftest_without_a_rom() {
+        let builtin =
+            Args::try_parse_from(["cinnabar", "--builtin", "input"]).expect("valid flags");
+        assert!(builtin.validate().is_ok());
+        assert_eq!(builtin.rom_path(), None);
+
+        let selftest = Args::try_parse_from(["cinnabar", "--selftest"]).expect("valid flags");
+        assert!(selftest.validate().is_ok());
+    }
+
+    #[test]
+    fn builtin_and_demo_conflict() {
+        let parsed = Args::try_parse_from(["cinnabar", "--demo", "--builtin", "input"]);
+        assert!(parsed.is_err());
     }
 
     #[test]
