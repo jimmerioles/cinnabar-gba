@@ -10,6 +10,10 @@ HLE.
 
 ![Cinnabar demo](docs/demo.png)
 
+| Tiled mode + sprite + alpha blending | Full ARM test suite |
+|---|---|
+| ![Tiled demo](docs/ppu-tiled.png) | ![ARM tests passed](docs/tests-arm.png) |
+
 ## The highlights
 
 - **ARM7TDMI interpreter** with ARM and Thumb, banked registers, exceptions, and
@@ -138,6 +142,9 @@ all selected gba-tests validations passed
 | Flash 64K | **PASS** |
 | Flash 128K / bank switching | **PASS** |
 | PPU hello / shades / stripes | **PASS** (visual) |
+| Mode 0 tiles + sprite + alpha blending | **PASS** (demo + integration test) |
+| DMA + timer/VBlank IRQ | **PASS** (integration test) |
+| VBlankIntrWait / halt-wake | **PASS** (integration test) |
 | BIOS internals | Not applicable: Cinnabar uses HLE instead of a real BIOS |
 | EEPROM saves | Not implemented |
 | `unsafe` suite | Test 2 is documented upstream as failing on real hardware; it is not part of our validation |
@@ -196,7 +203,8 @@ The honest compatibility picture:
 - PPU modes 0–5, text/affine backgrounds, sprites, windows, alpha and brightness
   effects.
 - PSG channels, DMA sound, frame sequencer, stereo mixer.
-- DMA, timers, IRQ controller, keypad, BIOS HLE.
+- DMA, timers, IRQ controller, keypad, BIOS HLE including `Halt` and
+  `VBlankIntrWait`.
 - Windowed frontend, audio, headless screenshots, save persistence.
 
 **Known limitations**
