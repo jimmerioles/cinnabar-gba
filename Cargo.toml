@@ -12,6 +12,7 @@ edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 authors = ["The Cinnabar Authors"]
+repository = "https://github.com/jimmerioles/cinnabar-gba"
 
 [workspace.dependencies]
 cinnabar-core = { path = "crates/cinnabar-core" }

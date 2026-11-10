@@ -1,5 +1,8 @@
 # Cinnabar
 
+[![CI](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg)](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **A clean-room Game Boy Advance emulator in Rust.**
 
 Cinnabar is split into a headless, deterministic emulator core and a small native
@@ -34,6 +37,11 @@ HLE.
   frames in and a PNG out.
 
 ## Quick start
+
+```bash
+git clone https://github.com/jimmerioles/cinnabar-gba.git
+cd cinnabar-gba
+```
 
 Cinnabar needs a stable Rust toolchain (1.85+) and the usual Linux window/audio
 development libraries. On Arch:
