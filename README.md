@@ -163,7 +163,27 @@ cargo run -p cinnabar-frontend -- test-roms/gba-tests/arm/arm.gba
 The first should show `Hello world!`; the second should show
 `All tests passed`.
 
-### 5. Try your own ROM
+### 5. Play a real homebrew game
+
+Celeste Classic is a third-party GBA port with a public release. Cinnabar does
+not bundle it; fetch it from the upstream project:
+
+```bash
+./tools/fetch-celeste.sh
+cargo run -p cinnabar-frontend -- test-roms/homebrew/celeste.gba
+```
+
+Expected: the Celeste title screen, then gameplay after pressing Z or Enter.
+
+| Key | Action |
+|---|---|
+| Arrow keys | Move |
+| `Z` | Jump |
+| `X` | Dash |
+| `Enter` | Pause |
+| `Backspace` | Toggle screen shake |
+
+### 6. Try your own ROM
 
 Drag a `.gba` file onto the Cinnabar window, or pass it on the command line.
 The window title and save path update when a ROM is dropped.
@@ -247,7 +267,8 @@ PASS none               r12=00000000
 PASS hello              colors=2
 PASS shades             colors=15
 PASS stripes            colors=2
-all selected gba-tests validations passed
+PASS celeste            colors=11 non_black=11995
+all selected validations passed
 ```
 
 | Suite | Status |
@@ -263,6 +284,7 @@ all selected gba-tests validations passed
 | DMA + timer/VBlank IRQ | **PASS** (integration test) |
 | VBlankIntrWait / halt-wake | **PASS** (integration test) |
 | Keypad test screen | **PASS** (integration test + `--builtin input`) |
+| Celeste Classic title + gameplay | **PASS** (optional real-game smoke test) |
 | BIOS internals | Not applicable: Cinnabar uses HLE instead of a real BIOS |
 | EEPROM saves | Not implemented |
 | `unsafe` suite | Test 2 is documented upstream as failing on real hardware; it is not part of our validation |
@@ -308,6 +330,7 @@ make lint
 make validate
 make selftest
 make input
+make celeste
 make demo
 ```
 

@@ -56,6 +56,7 @@ pub struct Bus {
     pub postflg: u8,
     pub halted: bool,
     pub wait_irq: Option<u16>,
+    pub wait_vblank: bool,
     pub reset_requested: bool,
     pub last_swi: u32,
 
@@ -85,6 +86,7 @@ impl Bus {
             postflg: 0,
             halted: false,
             wait_irq: None,
+            wait_vblank: false,
             reset_requested: false,
             last_swi: 0,
             open_bus: 0,

@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut history = VecDeque::with_capacity(16);
     for _ in 0..100_000_000 {
         let pc = system.cpu.pc();
-        if !(0x0800_0000..0x0800_1000).contains(&pc) {
+        if !(0x0800_0000..0x0E00_0000).contains(&pc) {
             println!("left ROM: pc={pc:08X} history={history:X?}");
             let r = system.cpu.regs();
             println!(

@@ -53,8 +53,24 @@ check_visual "test-roms/gba-tests/ppu/hello.gba" 2 hello
 check_visual "test-roms/gba-tests/ppu/shades.gba" 10 shades
 check_visual "test-roms/gba-tests/ppu/stripes.gba" 2 stripes
 
+# Optional real-game smoke test. Run ./tools/fetch-celeste.sh to enable it.
+if [ -f "test-roms/homebrew/celeste.gba" ]; then
+    out="$("$bin" test-roms/homebrew/celeste.gba 300 "$tmp/celeste.png" 1 2>&1)"
+    colors="$(printf '%s\n' "$out" | sed -n 's/.* unique_colors=\([0-9]*\).*/\1/p')"
+    non_black="$(printf '%s\n' "$out" | sed -n 's/.* non_black=\([0-9]*\).*/\1/p')"
+    if [ -n "$colors" ] && [ "$colors" -ge 8 ] \
+        && [ -n "$non_black" ] && [ "$non_black" -ge 5000 ]; then
+        printf 'PASS %-18s colors=%s non_black=%s\n' celeste "$colors" "$non_black"
+    else
+        printf 'FAIL %-18s colors=%s non_black=%s\n' celeste "${colors:-?}" "${non_black:-?}"
+        failures=$((failures + 1))
+    fi
+else
+    echo "SKIP celeste           (run tools/fetch-celeste.sh to enable it)"
+fi
+
 if [ "$failures" -ne 0 ]; then
     echo "$failures validation(s) failed"
     exit 1
 fi
-echo "all selected gba-tests validations passed"
+echo "all selected validations passed"

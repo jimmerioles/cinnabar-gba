@@ -25,6 +25,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get(3)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("screenshot.png"));
+    let keys = args
+        .get(4)
+        .and_then(|value| u16::from_str_radix(value, 16).ok())
+        .unwrap_or(0);
 
     let rom = std::fs::read(&rom_path)?;
     let cart = Cartridge::new(rom);
@@ -39,6 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut system = System::new(cart);
+    system.set_keys(keys);
     let output = system.run_frames(frames);
 
     let mut rgb = Vec::with_capacity(240 * 160 * 3);
@@ -59,18 +64,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     image::save_buffer(&out_path, &rgb, 240, 160, image::ColorType::Rgb8)?;
     println!(
-        "frames={frames} pc={:08X} r7={:08X} r12={:08X} vcount={} dispstat={:04X} frame_count={} line_cycles={} halted={} if={:04X} ie={:04X} ime={} unique_colors={} non_black={} -> {}",
+        "frames={frames} pc={:08X} r7={:08X} r12={:08X} vcount={} dispcnt={:04X} dispstat={:04X} frame_count={} line_cycles={} halted={} wait_vblank={} if={:04X} ie={:04X} ime={} audio={} unique_colors={} non_black={} -> {}",
         system.cpu.pc(),
         system.cpu.regs()[7],
         system.cpu.regs()[12],
         system.bus.ppu.vcount,
+        system.bus.ppu.dispcnt,
         system.bus.ppu.dispstat,
         system.bus.ppu.frame_count,
         system.bus.ppu.line_cycles(),
         system.bus.halted,
+        system.bus.wait_vblank,
         system.bus.irq.if_,
         system.bus.irq.ie,
         system.bus.irq.ime,
+        output.audio.len(),
         unique.len(),
         non_black,
         out_path.display()

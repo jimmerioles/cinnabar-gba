@@ -12,10 +12,13 @@ pub fn handle_swi(bus: &mut Bus, cpu: &mut Cpu, number: u32) {
     match number {
         0x00 => soft_reset(bus),
         0x01 => register_ram_reset(bus, cpu.r[0]),
-        0x02 => bus.halted = true,
-        0x03 => bus.halted = true,
+        0x02 | 0x03 => {
+            bus.wait_irq = None;
+            bus.wait_vblank = false;
+            bus.halted = true;
+        }
         0x04 => intr_wait(bus, cpu, cpu.r[0], cpu.r[1] as u16),
-        0x05 => intr_wait(bus, cpu, 1, 1),
+        0x05 => vblank_intr_wait(bus),
         0x06 => div(bus, cpu, false),
         0x07 => div(bus, cpu, true),
         0x08 => sqrt(cpu),
@@ -71,7 +74,16 @@ fn intr_wait(bus: &mut Bus, _cpu: &mut Cpu, discard: u32, mask: u16) {
     if discard != 0 {
         bus.irq.acknowledge(mask);
     }
+    bus.wait_vblank = false;
     bus.wait_irq = Some(mask & 0x3FFF);
+    bus.halted = true;
+}
+
+/// `VBlankIntrWait` waits for the next VBlank, not for the game to have
+/// enabled the VBlank IRQ. Real hardware BIOS callers rely on this.
+fn vblank_intr_wait(bus: &mut Bus) {
+    bus.wait_irq = None;
+    bus.wait_vblank = true;
     bus.halted = true;
 }
 
@@ -152,8 +164,10 @@ fn cpu_fast_set(bus: &mut Bus, cpu: &mut Cpu) {
     let src = cpu.r[0];
     let dst = cpu.r[1];
     let control = cpu.r[2];
-    let words = ((control & 0x1F_FFFF) as usize) * 2;
-    let fill = control & (1 << 26) != 0;
+    // CpuFastSet is always 32-bit; bit 24 is the fill flag. The count is a
+    // word count (and must be a multiple of 8 on hardware).
+    let words = (control & 0x1F_FFFF) as usize;
+    let fill = control & (1 << 24) != 0;
     let value = if fill { bus.read32(src) } else { 0 };
 
     for i in 0..words {

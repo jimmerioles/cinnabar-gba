@@ -87,6 +87,9 @@ pub struct Ppu {
     line_cycles: u32,
     pub frame_ready: bool,
     pub frame_count: u64,
+    /// Incremented every time VBlank begins. Used by `VBlankIntrWait` so the
+    /// wait does not depend on the game having enabled the VBlank IRQ.
+    pub vblank_count: u64,
 }
 
 impl Default for Ppu {
@@ -127,6 +130,7 @@ impl Ppu {
             line_cycles: 0,
             frame_ready: false,
             frame_count: 0,
+            vblank_count: 0,
         }
     }
 
@@ -155,6 +159,7 @@ impl Ppu {
             self.vcount = line + 1;
             if self.vcount == VISIBLE_SCANLINES {
                 self.dispstat |= 0x0001;
+                self.vblank_count = self.vblank_count.wrapping_add(1);
                 if self.dispstat & 0x0008 != 0 {
                     irq.request(irq::bits::VBLANK);
                 }

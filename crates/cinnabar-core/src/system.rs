@@ -72,15 +72,21 @@ impl System {
 
     pub fn step(&mut self) {
         if self.bus.halted {
+            let vblank_before = self.bus.ppu.vblank_count;
             self.bus.step(1);
             self.frame_cycles = self.frame_cycles.wrapping_add(1);
-            let wake = match self.bus.wait_irq {
-                Some(mask) => self.bus.irq.if_ & mask != 0,
-                None => self.bus.irq.ie & self.bus.irq.if_ != 0,
+            let wake = if self.bus.wait_vblank {
+                self.bus.ppu.vblank_count != vblank_before
+            } else {
+                match self.bus.wait_irq {
+                    Some(mask) => self.bus.irq.if_ & mask != 0,
+                    None => self.bus.irq.ie & self.bus.irq.if_ != 0,
+                }
             };
             if wake {
                 self.bus.halted = false;
                 self.bus.wait_irq = None;
+                self.bus.wait_vblank = false;
             }
             return;
         }
