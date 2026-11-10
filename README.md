@@ -13,10 +13,10 @@
   <code>450+ fps headless</code> · <code>full ARM + Thumb validation</code> · <code>no BIOS required</code>
 </p>
 
-> **Why “Cinnabar”?** Cinnabar is a red mineral — historically ground into
-> vermilion pigment — and a nod to Cinnabar Island from Pokémon Red and Blue,
-> and their GBA remakes FireRed and LeafGreen. The name is a tribute, not an
-> official association.
+> **Why “Cinnabar”?** The name comes from cinnabar, the red mineral
+> historically ground into vermilion pigment. Cinnabar Island from Pokémon Red
+> and Blue — and its GBA remakes FireRed and LeafGreen — is a deliberate nod,
+> not an official association.
 
 Cinnabar GBA pairs a headless, deterministic emulator core with a small native
 frontend. It boots real GBA ROMs, runs the full ARM and Thumb instruction sets,
