@@ -22,7 +22,7 @@ soak:
 	./tools/soak.sh $(ROM)
 
 wasm:
-	wasm-pack build crates/cinnabar-wasm --target web --out-dir web/pkg
+	cd crates/cinnabar-wasm && wasm-pack build --target web --out-dir ../../web/pkg
 
 selftest:
 	$(CARGO) run -p cinnabar-frontend -- --selftest

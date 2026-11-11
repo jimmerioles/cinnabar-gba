@@ -182,7 +182,9 @@ The headless core and a small canvas frontend build for WebAssembly. Install
 `wasm-pack`, then:
 
 ```bash
-wasm-pack build crates/cinnabar-wasm --target web --out-dir web/pkg
+cd crates/cinnabar-wasm
+wasm-pack build --target web --out-dir ../../web/pkg
+cd ../..
 python3 -m http.server -d web 8000
 ```
 
