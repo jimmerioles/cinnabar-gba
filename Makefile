@@ -1,4 +1,4 @@
-.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate smoke soak roms demo-rom clean
+.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate smoke soak wasm roms demo-rom clean
 
 CARGO ?= cargo
 ROM ?=
@@ -20,6 +20,9 @@ smoke:
 
 soak:
 	./tools/soak.sh $(ROM)
+
+wasm:
+	wasm-pack build crates/cinnabar-wasm --target web --out-dir web/pkg
 
 selftest:
 	$(CARGO) run -p cinnabar-frontend -- --selftest

@@ -46,10 +46,10 @@ follow-ups.
 - [x] Shaders: LCD grid, ghosting, and color correction.
 - [x] TOML config, key remapping, and volume control.
 - [x] Cubic audio resampling and volume control (buffer tuning remains optional).
-- [ ] WASM build for the browser.
+- [x] WASM build for the browser (experimental canvas frontend; audio and
+  gamepad support remain follow-ups).
 
-v0.4 frontend polish is in place except the browser/WASM target, which is a
-separate platform port rather than a desktop-frontend change.
+v0.4 desktop polish and the experimental browser preview are in place.
 
 ## v0.5 — The moonshots
 

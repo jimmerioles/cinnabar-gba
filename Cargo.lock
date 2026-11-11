@@ -327,6 +327,16 @@ name = "cinnabar-testrom"
 version = "0.4.0"
 
 [[package]]
+name = "cinnabar-wasm"
+version = "0.4.0"
+dependencies = [
+ "cinnabar-core",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "clap"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

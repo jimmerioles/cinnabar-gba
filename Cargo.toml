@@ -4,6 +4,7 @@ members = [
     "crates/cinnabar-core",
     "crates/cinnabar-frontend",
     "crates/cinnabar-testrom",
+    "crates/cinnabar-wasm",
 ]
 
 [workspace.package]

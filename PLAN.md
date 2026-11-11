@@ -1,10 +1,10 @@
 # GBA Emulator in Rust — Build Plan
 
 **Working name:** Cinnabar GBA
-**Status:** v0.4 desktop frontend polish implemented. The headless core also
-checks against `wasm32-unknown-unknown`; a browser frontend remains. See
-[`README.md`](README.md) and [`ROADMAP.md`](ROADMAP.md) for the current feature
-set, validation results, and remaining work.
+**Status:** v0.4 frontend polish implemented, including an experimental
+video-only browser/WASM preview. See [`README.md`](README.md) and
+[`ROADMAP.md`](ROADMAP.md) for the current feature set, validation results, and
+remaining work.
 **Goal:** a legally dumped GBA game boots, runs at full speed with audio, saves persist, and a debugger makes it pleasant to fix bugs.
 
 **Not the goal:** cycle-perfect emulation, link cable, netplay, or a shader stack. Compatibility first, accuracy where it matters.
@@ -447,11 +447,10 @@ A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have
 
 ## Current status and next work
 
-v0.2 and v0.3 are implemented, and the v0.4 desktop frontend polish adds
-gamepad support, shaders, config/key remapping/volume, cubic audio resampling,
-and a cover-aware ROM library scanner. The headless core compiles for
-`wasm32-unknown-unknown`; the browser frontend and the remaining accuracy work
-are tracked in [`ROADMAP.md`](ROADMAP.md).
+v0.2 and v0.3 are implemented, and the v0.4 frontend polish adds gamepad
+support, shaders, config/key remapping/volume, cubic audio resampling, a
+cover-aware ROM library scanner, and an experimental canvas/WASM preview. The
+remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 Run the validation and smoke suites:
 

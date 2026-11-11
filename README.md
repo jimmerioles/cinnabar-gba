@@ -176,6 +176,20 @@ matching save file.
 The library is currently a terminal scanner/launcher; a graphical cover grid is
 still on the roadmap.
 
+## Browser preview
+
+The headless core and a small canvas frontend build for WebAssembly. Install
+`wasm-pack`, then:
+
+```bash
+wasm-pack build crates/cinnabar-wasm --target web --out-dir web/pkg
+python3 -m http.server -d web 8000
+```
+
+Open `http://localhost:8000`, load a legally dumped `.gba` ROM, and use the
+keyboard. The browser preview is video-only for now; audio and gamepad support
+are follow-ups.
+
 ## Manual testing without a ROM
 
 Cinnabar GBA ships with test cartridges, so you do not need a commercial ROM to
@@ -521,9 +535,9 @@ The honest compatibility picture:
   High square/noise frequencies alias at 48 kHz.
 - PPU timing is scanline-based. Dot-level effects and exact HBlank timing are
   still approximate, although mosaic, OBJ windows, and affine sprites render.
-- No graphical debugger panels, link cable, netplay, or WASM build yet. Save
-  states, rewind, text-mode PPU viewers, shaders, gamepads, and config/key
-  remapping are available. The ROM library is a terminal scanner/launcher.
+- No graphical debugger panels, link cable, or netplay yet. Save states, rewind,
+  text-mode PPU viewers, shaders, gamepads, config/key remapping, a ROM library,
+  and an experimental video-only browser preview are available.
 - Commercial game compatibility is still a work in progress. The CPU, memory,
   and save foundations are validated; PPU edge cases and timing are the next
   compatibility frontier.
