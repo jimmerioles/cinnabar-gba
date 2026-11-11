@@ -23,6 +23,77 @@ const fn expand5(value: u8) -> u8 {
     (value << 3) | (value >> 2)
 }
 
+/// Optional post-processing effects applied while presenting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Shader {
+    pub lcd: bool,
+    pub ghosting: bool,
+    pub color: bool,
+}
+
+impl Shader {
+    pub fn parse(value: &str) -> Result<Self> {
+        let mut shader = Self::default();
+        for part in value.split([',', '+', ' ']).filter(|part| !part.is_empty()) {
+            match part.to_ascii_lowercase().as_str() {
+                "none" | "off" => shader = Self::default(),
+                "lcd" | "grid" => shader.lcd = true,
+                "ghosting" | "ghost" => shader.ghosting = true,
+                "color" | "colour" => shader.color = true,
+                other => anyhow::bail!("unknown shader \"{other}\""),
+            }
+        }
+        Ok(shader)
+    }
+
+    pub fn label(self) -> String {
+        let mut parts = Vec::new();
+        if self.lcd {
+            parts.push("lcd");
+        }
+        if self.ghosting {
+            parts.push("ghosting");
+        }
+        if self.color {
+            parts.push("color");
+        }
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join("+")
+        }
+    }
+}
+
+fn color_correct([red, green, blue]: [u8; 3]) -> [u8; 3] {
+    // A soft GBA-LCD approximation: slightly desaturated and warmed, with
+    // lifted blacks and reduced contrast.
+    let r = 0.82 * f32::from(red) + 0.14 * f32::from(green) + 0.04 * f32::from(blue) + 4.0;
+    let g = 0.08 * f32::from(red) + 0.88 * f32::from(green) + 0.04 * f32::from(blue) + 3.0;
+    let b = 0.05 * f32::from(red) + 0.09 * f32::from(green) + 0.86 * f32::from(blue) + 2.0;
+    [clamp8(r), clamp8(g), clamp8(b)]
+}
+
+fn clamp8(value: f32) -> u8 {
+    value.clamp(0.0, 255.0) as u8
+}
+
+fn blend(current: [u8; 3], previous: [u8; 3], previous_weight: f32) -> [u8; 3] {
+    let current_weight = 1.0 - previous_weight;
+    [
+        clamp8(f32::from(current[0]) * current_weight + f32::from(previous[0]) * previous_weight),
+        clamp8(f32::from(current[1]) * current_weight + f32::from(previous[1]) * previous_weight),
+        clamp8(f32::from(current[2]) * current_weight + f32::from(previous[2]) * previous_weight),
+    ]
+}
+
+fn darken(pixel: u32, factor: f32) -> u32 {
+    let r = ((pixel >> 16) & 0xFF) as f32 * factor;
+    let g = ((pixel >> 8) & 0xFF) as f32 * factor;
+    let b = (pixel & 0xFF) as f32 * factor;
+    ((clamp8(r) as u32) << 16) | ((clamp8(g) as u32) << 8) | clamp8(b) as u32
+}
+
 fn rgb_to_pixel([r, g, b]: [u8; 3]) -> u32 {
     ((r as u32) << 16) | ((g as u32) << 8) | b as u32
 }
@@ -82,6 +153,11 @@ pub struct WindowSurface {
     width: u32,
     height: u32,
     scaled_row: Vec<u32>,
+    scaled_row_dim: Vec<u32>,
+    current: Vec<[u8; 3]>,
+    previous: Vec<[u8; 3]>,
+    first_frame: bool,
+    shader: Shader,
 }
 
 impl WindowSurface {
@@ -109,7 +185,16 @@ impl WindowSurface {
             width,
             height,
             scaled_row: Vec::new(),
+            scaled_row_dim: Vec::new(),
+            current: vec![[0, 0, 0]; SCREEN_WIDTH * SCREEN_HEIGHT],
+            previous: vec![[0, 0, 0]; SCREEN_WIDTH * SCREEN_HEIGHT],
+            first_frame: true,
+            shader: Shader::default(),
         })
+    }
+
+    pub fn set_shader(&mut self, shader: Shader) {
+        self.shader = shader;
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
@@ -152,7 +237,26 @@ impl WindowSurface {
         let left = (width - scaled_width) / 2;
         let top = (height - scaled_height) / 2;
 
+        // Convert and post-process at native resolution first, then scale.
+        for (index, color) in framebuffer
+            .iter()
+            .take(SCREEN_WIDTH * SCREEN_HEIGHT)
+            .enumerate()
+        {
+            let mut rgb = bgr555_to_rgb(*color);
+            if self.shader.color {
+                rgb = color_correct(rgb);
+            }
+            if self.shader.ghosting && !self.first_frame {
+                rgb = blend(rgb, self.previous[index], 0.25);
+            }
+            self.current[index] = rgb;
+            self.previous[index] = rgb;
+        }
+        self.first_frame = false;
+
         self.scaled_row.resize(scaled_width, 0);
+        self.scaled_row_dim.resize(scaled_width, 0);
         for source_y in 0..SCREEN_HEIGHT {
             let dest_y = source_y * scale;
             if dest_y >= scaled_height {
@@ -161,18 +265,29 @@ impl WindowSurface {
 
             for (dest_x, pixel) in self.scaled_row.iter_mut().enumerate() {
                 let source_x = dest_x / scale;
-                let color = framebuffer
-                    .get(source_y * SCREEN_WIDTH + source_x)
-                    .copied()
-                    .unwrap_or(0);
-                *pixel = rgb_to_pixel(bgr555_to_rgb(color));
+                let rgb = self.current[source_y * SCREEN_WIDTH + source_x];
+                let mut packed = rgb_to_pixel(rgb);
+                if self.shader.lcd && dest_x % scale == 0 {
+                    packed = darken(packed, 0.72);
+                }
+                *pixel = packed;
+            }
+            if self.shader.lcd {
+                for (dest, pixel) in self.scaled_row_dim.iter_mut().zip(self.scaled_row.iter()) {
+                    *dest = darken(*pixel, 0.72);
+                }
             }
 
             let rows = scale.min(scaled_height - dest_y);
             for row in 0..rows {
-                let start = (top + dest_y + row) * width + left;
-                buffer[start..start + scaled_width]
-                    .copy_from_slice(&self.scaled_row[..scaled_width]);
+                let dest_row = dest_y + row;
+                let source = if self.shader.lcd && dest_row % scale == 0 {
+                    &self.scaled_row_dim
+                } else {
+                    &self.scaled_row
+                };
+                let start = (top + dest_row) * width + left;
+                buffer[start..start + scaled_width].copy_from_slice(&source[..scaled_width]);
             }
         }
 
@@ -208,6 +323,27 @@ mod tests {
     #[test]
     fn packs_rgb_into_softbuffer_layout() {
         assert_eq!(rgb_to_pixel([0x12, 0x34, 0x56]), 0x0012_3456);
+    }
+
+    #[test]
+    fn parses_shader_combinations() {
+        assert_eq!(Shader::parse("none").unwrap(), Shader::default());
+        assert_eq!(
+            Shader::parse("lcd,color").unwrap(),
+            Shader {
+                lcd: true,
+                ghosting: false,
+                color: true,
+            }
+        );
+        assert!(Shader::parse("bloom").is_err());
+    }
+
+    #[test]
+    fn color_correction_stays_in_range_and_changes_output() {
+        let corrected = color_correct([255, 0, 0]);
+        assert!(corrected[0] > 180);
+        assert_ne!(color_correct([10, 20, 30]), [10, 20, 30]);
     }
 
     #[test]

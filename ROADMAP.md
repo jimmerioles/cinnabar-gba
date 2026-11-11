@@ -40,12 +40,16 @@ follow-ups.
 
 ## v0.4 — Frontend polish
 
-- Gamepad support.
-- ROM library with cover art and save management.
-- Shaders: LCD grid, ghosting, color correction.
-- Config file, key remapping, volume control.
-- Better audio resampling and latency tuning.
-- WASM build for the browser.
+- [x] Gamepad support (gilrs; D-pad/left stick and shoulders).
+- [x] ROM library scanner with cover discovery and save management.
+  A graphical cover grid remains.
+- [x] Shaders: LCD grid, ghosting, and color correction.
+- [x] TOML config, key remapping, and volume control.
+- [x] Cubic audio resampling and volume control (buffer tuning remains optional).
+- [ ] WASM build for the browser.
+
+v0.4 frontend polish is in place except the browser/WASM target, which is a
+separate platform port rather than a desktop-frontend change.
 
 ## v0.5 — The moonshots
 

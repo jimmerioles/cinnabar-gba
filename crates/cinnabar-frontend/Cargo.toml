@@ -16,7 +16,10 @@ cinnabar-testrom.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 cpal.workspace = true
+gilrs = "0.11"
 image.workspace = true
 rtrb.workspace = true
+serde = { version = "1", features = ["derive"] }
 softbuffer.workspace = true
+toml = "0.8"
 winit.workspace = true

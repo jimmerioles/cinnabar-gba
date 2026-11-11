@@ -45,6 +45,8 @@ HLE.
 - **Headless debugger** with ARM/Thumb disassembly, breakpoints, instruction and
   frame stepping, memory editing, save states, rewinding, and tile/palette/OAM
   viewers.
+- **Frontend polish**: gamepad support, LCD/ghosting/color shaders, a TOML
+  config, key remapping, volume, and a cover-aware ROM library.
 
 ## Quick start
 
@@ -123,8 +125,56 @@ cargo run -p cinnabar-frontend -- /path/to/game.gba --info
 Celeste Classic uses the D-pad, A, B, Start, and Select. The L and R shoulder
 buttons are only used by games that support them.
 
+Gamepads are detected automatically through `gilrs`: South is A, East is B,
+Start/Select map to Start/Select, the D-pad and left stick map to the D-pad, and
+the shoulder buttons map to L/R.
+
 Saves are written next to the ROM as `<rom>.sav` (or to `--save <path>`), and
 loaded automatically on the next run.
+
+## Configuration
+
+Cinnabar reads `$XDG_CONFIG_HOME/cinnabar/config.toml` or
+`~/.config/cinnabar/config.toml` if present. Use `--config <path>` to choose a
+different file. See [`docs/config.example.toml`](docs/config.example.toml).
+
+```toml
+scale = 4
+shader = "lcd,color"
+volume = 0.8
+
+[keys]
+A = "a, z"
+B = "s, x"
+L = "q"
+R = "e"
+```
+
+Command-line flags override the config. Useful options:
+
+```bash
+cinnabar game.gba --shader lcd,color
+cinnabar game.gba --volume 0.7
+```
+
+Shaders can be combined: `lcd`, `ghosting`, and `color`.
+
+## ROM library
+
+Scan a directory for `.gba` files and sidecar cover images:
+
+```bash
+cinnabar --library ~/Games/gba
+cinnabar --library ~/Games/gba --play METROID
+```
+
+The library reads cartridge titles and save types, reports save-file sizes, and
+looks for covers next to the ROM (`game.png`) or under `covers/`. `--play`
+accepts a title, game code, or file stem. `--delete-save <name>` removes the
+matching save file.
+
+The library is currently a terminal scanner/launcher; a graphical cover grid is
+still on the roadmap.
 
 ## Manual testing without a ROM
 
@@ -471,9 +521,9 @@ The honest compatibility picture:
   High square/noise frequencies alias at 48 kHz.
 - PPU timing is scanline-based. Dot-level effects and exact HBlank timing are
   still approximate, although mosaic, OBJ windows, and affine sprites render.
-- No graphical debugger panels, link cable, netplay, or shaders yet. Save
-  states, rewind, and text-mode PPU viewers are available in the headless
-  debugger.
+- No graphical debugger panels, link cable, netplay, or WASM build yet. Save
+  states, rewind, text-mode PPU viewers, shaders, gamepads, and config/key
+  remapping are available. The ROM library is a terminal scanner/launcher.
 - Commercial game compatibility is still a work in progress. The CPU, memory,
   and save foundations are validated; PPU edge cases and timing are the next
   compatibility frontier.

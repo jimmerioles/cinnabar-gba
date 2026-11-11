@@ -3,13 +3,20 @@
 mod app;
 mod audio;
 mod cli;
+mod config;
 mod debugger;
+mod gamepad;
 mod headless;
+mod keymap;
+mod library;
 mod selftest;
 mod storage;
 mod video;
 
-use anyhow::{Result, bail};
+use std::fs;
+use std::path::Path;
+
+use anyhow::{Context, Result, bail};
 use cinnabar_core::{Cartridge, System};
 use clap::Parser;
 
@@ -28,8 +35,59 @@ fn main() -> Result<()> {
     }
 
     args.validate()?;
+    let file_config = config::load(args.config.as_deref())?;
 
-    let rom_path = args.rom_path();
+    let scale = args.scale.or(file_config.scale).unwrap_or(4);
+    if scale == 0 {
+        bail!("--scale must be at least 1");
+    }
+    let volume = args.volume.or(file_config.volume).unwrap_or(1.0);
+    if !(0.0..=1.0).contains(&volume) {
+        bail!("volume must be between 0.0 and 1.0");
+    }
+    let shader = args
+        .shader
+        .as_deref()
+        .or(file_config.shader.as_deref())
+        .map(video::Shader::parse)
+        .transpose()?
+        .unwrap_or_default();
+    let keymap = keymap::KeyMap::from_config(&file_config.keys)?;
+
+    let library_dir = args.library.clone().or(file_config.library.clone());
+    let mut selected_rom = args.rom_path().map(Path::to_path_buf);
+    if let Some(directory) = library_dir {
+        let entries = library::scan(&directory)?;
+        if let Some(query) = &args.delete_save {
+            let entry = library::find(&entries, query)
+                .with_context(|| format!("no library game matched \"{query}\""))?;
+            if entry.save_path.exists() {
+                fs::remove_file(&entry.save_path)
+                    .with_context(|| format!("failed to remove {}", entry.save_path.display()))?;
+                println!("deleted save {}", entry.save_path.display());
+            } else {
+                println!("no save file for {}", entry.title);
+            }
+            return Ok(());
+        }
+        if let Some(query) = &args.play {
+            let entry = library::find(&entries, query)
+                .with_context(|| format!("no library game matched \"{query}\""))?;
+            selected_rom = Some(entry.path.clone());
+            println!(
+                "cinnabar: playing {} from {}",
+                entry.title,
+                entry.path.display()
+            );
+        } else {
+            library::print_list(&entries, &directory);
+            return Ok(());
+        }
+    } else if args.play.is_some() || args.delete_save.is_some() {
+        bail!("--play/--delete-save require --library or a library path in the config");
+    }
+
+    let rom_path = selected_rom.as_deref();
     let rom = match rom_path {
         Some(path) => storage::read_rom(path)?,
         None if args.demo => cinnabar_testrom::logo_rom(),
@@ -68,7 +126,10 @@ fn main() -> Result<()> {
         app::AppConfig {
             title,
             save_path,
-            scale: args.scale,
+            scale,
+            shader,
+            volume,
+            keymap,
         },
     )
 }

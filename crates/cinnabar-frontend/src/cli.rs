@@ -51,8 +51,32 @@ pub struct Args {
     pub screenshot: Option<PathBuf>,
 
     /// Initial window scale factor.
-    #[arg(long, default_value_t = 4, value_name = "N")]
-    pub scale: u32,
+    #[arg(long, value_name = "N")]
+    pub scale: Option<u32>,
+
+    /// Read settings from a TOML config file.
+    #[arg(long, value_name = "PATH")]
+    pub config: Option<PathBuf>,
+
+    /// Scan a ROM library directory and list its games.
+    #[arg(long, value_name = "DIR")]
+    pub library: Option<PathBuf>,
+
+    /// Play a title, game code, or file stem from the library.
+    #[arg(long, value_name = "NAME", conflicts_with_all = ["rom", "demo", "builtin", "delete_save"])]
+    pub play: Option<String>,
+
+    /// Delete the save file for a library game.
+    #[arg(long, value_name = "NAME", conflicts_with_all = ["rom", "demo", "builtin", "play"])]
+    pub delete_save: Option<String>,
+
+    /// Initial audio volume, from 0.0 to 1.0.
+    #[arg(long, value_name = "LEVEL")]
+    pub volume: Option<f32>,
+
+    /// Post-processing effects: none, lcd, ghosting, color (comma-separated).
+    #[arg(long, value_name = "EFFECTS")]
+    pub shader: Option<String>,
 
     /// Save-file path (defaults to <rom>.sav).
     #[arg(long, value_name = "PATH")]
@@ -66,14 +90,24 @@ pub struct Args {
 impl Args {
     /// Reject combinations that cannot produce a sensible run.
     pub fn validate(&self) -> Result<()> {
-        if self.list_builtins || self.selftest {
+        if self.list_builtins
+            || self.selftest
+            || self.library.is_some()
+            || self.play.is_some()
+            || self.delete_save.is_some()
+        {
             return Ok(());
         }
         if self.rom.is_none() && !self.demo && self.builtin.is_none() {
             bail!("no ROM given: pass a ROM path, --demo, --builtin <name>, or --selftest");
         }
-        if self.scale == 0 {
+        if self.scale == Some(0) {
             bail!("--scale must be at least 1");
+        }
+        if let Some(volume) = self.volume
+            && !(0.0..=1.0).contains(&volume)
+        {
+            bail!("--volume must be between 0.0 and 1.0");
         }
         Ok(())
     }

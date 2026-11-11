@@ -18,8 +18,9 @@ const RING_CAPACITY: usize = 32_768;
 pub struct AudioOutput {
     _stream: cpal::Stream,
     producer: rtrb::Producer<f32>,
-    resampler: Option<LinearResampler>,
+    resampler: Option<CubicResampler>,
     staging: Vec<f32>,
+    volume: f32,
 }
 
 impl AudioOutput {
@@ -75,9 +76,14 @@ impl AudioOutput {
             _stream: stream,
             producer,
             resampler: (device_rate != source_rate)
-                .then(|| LinearResampler::new(source_rate, device_rate)),
+                .then(|| CubicResampler::new(source_rate, device_rate)),
             staging: Vec::new(),
+            volume: 1.0,
         })
+    }
+
+    pub fn set_volume(&mut self, volume: f32) {
+        self.volume = volume.clamp(0.0, 1.0);
     }
 
     /// Queue interleaved stereo `f32` samples from the APU.
@@ -95,7 +101,7 @@ impl AudioOutput {
         };
 
         for &sample in samples {
-            if self.producer.push(sample).is_err() {
+            if self.producer.push(sample * self.volume).is_err() {
                 break;
             }
         }
@@ -154,25 +160,26 @@ where
     Ok(stream)
 }
 
-/// Streaming linear resampler for interleaved stereo frames.
+/// Streaming cubic resampler for interleaved stereo frames.
 ///
-/// `position` is measured in source frames between `previous` and the front of
-/// `pending`. One source frame is held back between calls, which keeps chunk
-/// boundaries seamless.
-struct LinearResampler {
+/// `position` is measured in source frames between `p1` and `p2`. Two future
+/// frames are held back between calls, which keeps chunk boundaries seamless.
+struct CubicResampler {
     step: f64,
     position: f64,
-    previous: [f32; 2],
+    p0: [f32; 2],
+    p1: [f32; 2],
     pending: VecDeque<[f32; 2]>,
     primed: bool,
 }
 
-impl LinearResampler {
+impl CubicResampler {
     fn new(source_rate: u32, device_rate: u32) -> Self {
         Self {
-            step: source_rate as f64 / device_rate as f64,
+            step: f64::from(source_rate) / f64::from(device_rate),
             position: 0.0,
-            previous: [0.0; 2],
+            p0: [0.0; 2],
+            p1: [0.0; 2],
             pending: VecDeque::new(),
             primed: false,
         }
@@ -184,10 +191,11 @@ impl LinearResampler {
         }
 
         if !self.primed {
-            let Some(first) = self.pending.pop_front() else {
+            if self.pending.len() < 2 {
                 return;
-            };
-            self.previous = first;
+            }
+            self.p0 = self.pending.pop_front().unwrap_or([0.0; 2]);
+            self.p1 = self.pending.pop_front().unwrap_or([0.0; 2]);
             self.position = 0.0;
             self.primed = true;
         }
@@ -197,23 +205,30 @@ impl LinearResampler {
                 let Some(frame) = self.pending.pop_front() else {
                     return;
                 };
-                self.previous = frame;
+                self.p0 = self.p1;
+                self.p1 = frame;
                 self.position -= 1.0;
             }
 
-            let Some(next) = self.pending.front().copied() else {
+            let Some(p2) = self.pending.front().copied() else {
+                return;
+            };
+            let Some(p3) = self.pending.get(1).copied() else {
                 return;
             };
             let t = self.position as f32;
-            output.push(lerp(self.previous[0], next[0], t));
-            output.push(lerp(self.previous[1], next[1], t));
+            output.push(cubic(self.p0[0], self.p1[0], p2[0], p3[0], t));
+            output.push(cubic(self.p0[1], self.p1[1], p2[1], p3[1], t));
             self.position += self.step;
         }
     }
 }
 
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
+fn cubic(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
+    0.5 * (2.0 * p1
+        + (-p0 + p2) * t
+        + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+        + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t)
 }
 
 #[cfg(test)]
@@ -225,15 +240,14 @@ mod tests {
     }
 
     #[test]
-    fn lerp_endpoints() {
-        assert_eq!(lerp(1.0, 3.0, 0.0), 1.0);
-        assert_eq!(lerp(1.0, 3.0, 1.0), 3.0);
-        assert_eq!(lerp(1.0, 3.0, 0.5), 2.0);
+    fn cubic_passes_through_linear_points() {
+        assert_eq!(cubic(0.0, 1.0, 2.0, 3.0, 0.0), 1.0);
+        assert!((cubic(0.0, 1.0, 2.0, 3.0, 0.5) - 1.5).abs() < 0.001);
     }
 
     #[test]
-    fn matching_rate_preserves_the_stream_over_chunks() {
-        let mut resampler = LinearResampler::new(48_000, 48_000);
+    fn matching_rate_drops_the_startup_and_tail_frames() {
+        let mut resampler = CubicResampler::new(48_000, 48_000);
         let mut output = Vec::new();
         let first = interleaved(&[[0.0, 0.0], [1.0, -1.0], [2.0, -2.0]]);
         let second = interleaved(&[[3.0, -3.0], [4.0, -4.0]]);
@@ -242,25 +256,24 @@ mod tests {
         resampler.process(&second, &mut output);
         resampler.process(&third, &mut output);
 
-        assert_eq!(output.len(), 10);
         let left: Vec<f32> = output.chunks_exact(2).map(|frame| frame[0]).collect();
-        assert_eq!(left, vec![0.0, 1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(left, vec![1.0, 2.0, 3.0]);
     }
 
     #[test]
     fn downsampling_uses_approximately_half_the_frames() {
-        let mut resampler = LinearResampler::new(48_000, 24_000);
+        let mut resampler = CubicResampler::new(48_000, 24_000);
         let mut output = Vec::new();
         for _ in 0..10 {
             let input = interleaved(&[[1.0, 1.0]; 10]);
             resampler.process(&input, &mut output);
         }
-        assert!((40..=60).contains(&(output.len() / 2)));
+        assert!((39..=60).contains(&(output.len() / 2)));
     }
 
     #[test]
     fn upsampling_uses_approximately_twice_the_frames() {
-        let mut resampler = LinearResampler::new(24_000, 48_000);
+        let mut resampler = CubicResampler::new(24_000, 48_000);
         let mut output = Vec::new();
         for _ in 0..10 {
             let input = interleaved(&[[1.0, 1.0]; 10]);

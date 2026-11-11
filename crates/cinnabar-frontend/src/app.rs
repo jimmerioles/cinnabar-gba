@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use cinnabar_core::keypad::keys;
 use cinnabar_core::{Cartridge, SCREEN_HEIGHT, SCREEN_WIDTH, System};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -15,8 +14,10 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::audio::AudioOutput;
+use crate::gamepad::Gamepad;
+use crate::keymap::KeyMap;
 use crate::storage;
-use crate::video::{self, WindowSurface};
+use crate::video::{self, Shader, WindowSurface};
 
 /// 280,896 cycles per frame at 16.78 MHz is 59.7275 Hz.
 const FRAME_PERIOD: Duration = Duration::from_nanos(16_742_706);
@@ -27,6 +28,9 @@ pub struct AppConfig {
     pub title: String,
     pub save_path: Option<PathBuf>,
     pub scale: u32,
+    pub shader: Shader,
+    pub volume: f32,
+    pub keymap: KeyMap,
 }
 
 /// Build the event loop and run until the user quits.
@@ -49,7 +53,9 @@ struct App {
     surface: Option<WindowSurface>,
     audio: Option<AudioOutput>,
     audio_attempted: bool,
-    keys: u16,
+    keyboard_keys: u16,
+    gamepad_keys: u16,
+    gamepad: Option<Gamepad>,
     paused: bool,
     fast_forward: bool,
     fullscreen: bool,
@@ -67,7 +73,13 @@ impl App {
             surface: None,
             audio: None,
             audio_attempted: false,
-            keys: 0,
+            keyboard_keys: 0,
+            gamepad_keys: 0,
+            gamepad: Gamepad::new()
+                .map_err(|error| {
+                    eprintln!("cinnabar: gamepad unavailable: {error:#}");
+                })
+                .ok(),
             paused: false,
             fast_forward: false,
             fullscreen: false,
@@ -98,7 +110,10 @@ impl App {
         };
 
         let surface = match WindowSurface::new(window.clone()) {
-            Ok(surface) => surface,
+            Ok(mut surface) => {
+                surface.set_shader(self.config.shader);
+                surface
+            }
             Err(error) => {
                 self.fatal = Some(error.context("failed to initialize window rendering"));
                 event_loop.exit();
@@ -112,13 +127,20 @@ impl App {
         if !self.audio_attempted {
             self.audio_attempted = true;
             self.audio = AudioOutput::start(self.system.bus.apu.sample_rate());
+            if let Some(audio) = &mut self.audio {
+                audio.set_volume(self.config.volume);
+            }
         }
 
-        self.system.set_keys(self.keys);
+        self.system.set_keys(self.combined_keys());
         self.run_frame();
         self.next_frame = Instant::now() + FRAME_PERIOD;
         self.update_window_title();
         window.request_redraw();
+    }
+
+    fn combined_keys(&self) -> u16 {
+        self.keyboard_keys | self.gamepad_keys
     }
 
     fn run_frame(&mut self) {
@@ -135,6 +157,10 @@ impl App {
         }
         if self.fast_forward {
             title.push_str(" — fast-forward");
+        }
+        if self.config.shader != Shader::default() {
+            title.push_str(" — ");
+            title.push_str(&self.config.shader.label());
         }
         if let Some(window) = &self.window {
             window.set_title(&title);
@@ -167,7 +193,8 @@ impl App {
         self.system = system;
         self.config.title = title;
         self.config.save_path = save_path;
-        self.keys = 0;
+        self.keyboard_keys = 0;
+        self.gamepad_keys = 0;
         self.system.set_keys(0);
         self.paused = false;
         self.fast_forward = false;
@@ -233,13 +260,13 @@ impl App {
             }
         }
 
-        if let Some(bit) = key_bit(code) {
+        if let Some(bit) = self.config.keymap.bit_for(code) {
             if pressed {
-                self.keys |= bit;
+                self.keyboard_keys |= bit;
             } else {
-                self.keys &= !bit;
+                self.keyboard_keys &= !bit;
             }
-            self.system.set_keys(self.keys);
+            self.system.set_keys(self.combined_keys());
         }
 
         false
@@ -287,7 +314,8 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::Focused(false) => {
-                self.keys = 0;
+                self.keyboard_keys = 0;
+                self.gamepad_keys = 0;
                 self.system.set_keys(0);
             }
             WindowEvent::RedrawRequested => {
@@ -317,6 +345,14 @@ impl ApplicationHandler for App {
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         };
+
+        if let Some(gamepad) = &mut self.gamepad {
+            let gamepad_keys = gamepad.poll();
+            if gamepad_keys != self.gamepad_keys {
+                self.gamepad_keys = gamepad_keys;
+                self.system.set_keys(self.combined_keys());
+            }
+        }
 
         if self.paused {
             event_loop.set_control_flow(ControlFlow::Wait);
@@ -354,43 +390,5 @@ impl ApplicationHandler for App {
 impl Drop for App {
     fn drop(&mut self) {
         self.persist_save();
-    }
-}
-
-fn key_bit(code: KeyCode) -> Option<u16> {
-    Some(match code {
-        KeyCode::KeyZ | KeyCode::KeyA => keys::A,
-        KeyCode::KeyX | KeyCode::KeyS => keys::B,
-        KeyCode::Enter => keys::START,
-        KeyCode::Backspace => keys::SELECT,
-        KeyCode::ArrowUp => keys::UP,
-        KeyCode::ArrowDown => keys::DOWN,
-        KeyCode::ArrowLeft => keys::LEFT,
-        KeyCode::ArrowRight => keys::RIGHT,
-        KeyCode::KeyQ => keys::L,
-        KeyCode::KeyE => keys::R,
-        _ => return None,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn maps_the_documented_keyboard_controls() {
-        assert_eq!(key_bit(KeyCode::KeyA), Some(keys::A));
-        assert_eq!(key_bit(KeyCode::KeyZ), Some(keys::A));
-        assert_eq!(key_bit(KeyCode::KeyS), Some(keys::B));
-        assert_eq!(key_bit(KeyCode::KeyX), Some(keys::B));
-        assert_eq!(key_bit(KeyCode::Enter), Some(keys::START));
-        assert_eq!(key_bit(KeyCode::Backspace), Some(keys::SELECT));
-        assert_eq!(key_bit(KeyCode::ArrowUp), Some(keys::UP));
-        assert_eq!(key_bit(KeyCode::ArrowDown), Some(keys::DOWN));
-        assert_eq!(key_bit(KeyCode::ArrowLeft), Some(keys::LEFT));
-        assert_eq!(key_bit(KeyCode::ArrowRight), Some(keys::RIGHT));
-        assert_eq!(key_bit(KeyCode::KeyQ), Some(keys::L));
-        assert_eq!(key_bit(KeyCode::KeyE), Some(keys::R));
-        assert_eq!(key_bit(KeyCode::Escape), None);
     }
 }

@@ -1,0 +1,29 @@
+# Cinnabar GBA configuration.
+#
+# Default location:
+#   $XDG_CONFIG_HOME/cinnabar/config.toml
+#   ~/.config/cinnabar/config.toml
+#
+# Pass --config path/to/config.toml to use another file.
+
+scale = 4
+# Combine effects with commas: lcd, ghosting, color.
+shader = "none"
+volume = 1.0
+
+# Optional default directory for --library.
+# library = "/home/you/Games/gba"
+
+# Keyboard bindings. Each button accepts one or more comma-separated keys.
+# Defaults are shown here; uncomment a line to replace that button.
+[keys]
+# A = "a, z"
+# B = "s, x"
+# Start = "enter"
+# Select = "backspace"
+# Up = "up"
+# Down = "down"
+# Left = "left"
+# Right = "right"
+# L = "q"
+# R = "e"
