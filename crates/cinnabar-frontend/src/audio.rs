@@ -1,13 +1,13 @@
 //! Audio output: a cpal stream fed through an rtrb SPSC ring buffer.
 //!
 //! The APU returns interleaved stereo `f32` samples at its own rate. The
-//! frontend resamples them to the output device rate with a short linear
-//! interpolator and maps them to however many channels the device wants.
-//! Missing audio hardware is never fatal: the emulator keeps running silently.
-
-use std::collections::VecDeque;
+//! frontend resamples them to the output device rate with a cubic interpolator
+//! shared with the browser frontend, then maps them to however many channels
+//! the device wants. Missing audio hardware is never fatal: the emulator keeps
+//! running silently.
 
 use anyhow::{Context, Result, bail};
+use cinnabar_core::CubicResampler;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 
@@ -158,127 +158,4 @@ where
         .context("failed to open the audio output stream")?;
 
     Ok(stream)
-}
-
-/// Streaming cubic resampler for interleaved stereo frames.
-///
-/// `position` is measured in source frames between `p1` and `p2`. Two future
-/// frames are held back between calls, which keeps chunk boundaries seamless.
-struct CubicResampler {
-    step: f64,
-    position: f64,
-    p0: [f32; 2],
-    p1: [f32; 2],
-    pending: VecDeque<[f32; 2]>,
-    primed: bool,
-}
-
-impl CubicResampler {
-    fn new(source_rate: u32, device_rate: u32) -> Self {
-        Self {
-            step: f64::from(source_rate) / f64::from(device_rate),
-            position: 0.0,
-            p0: [0.0; 2],
-            p1: [0.0; 2],
-            pending: VecDeque::new(),
-            primed: false,
-        }
-    }
-
-    fn process(&mut self, input: &[f32], output: &mut Vec<f32>) {
-        for frame in input.chunks_exact(2) {
-            self.pending.push_back([frame[0], frame[1]]);
-        }
-
-        if !self.primed {
-            if self.pending.len() < 2 {
-                return;
-            }
-            self.p0 = self.pending.pop_front().unwrap_or([0.0; 2]);
-            self.p1 = self.pending.pop_front().unwrap_or([0.0; 2]);
-            self.position = 0.0;
-            self.primed = true;
-        }
-
-        loop {
-            while self.position >= 1.0 {
-                let Some(frame) = self.pending.pop_front() else {
-                    return;
-                };
-                self.p0 = self.p1;
-                self.p1 = frame;
-                self.position -= 1.0;
-            }
-
-            let Some(p2) = self.pending.front().copied() else {
-                return;
-            };
-            let Some(p3) = self.pending.get(1).copied() else {
-                return;
-            };
-            let t = self.position as f32;
-            output.push(cubic(self.p0[0], self.p1[0], p2[0], p3[0], t));
-            output.push(cubic(self.p0[1], self.p1[1], p2[1], p3[1], t));
-            self.position += self.step;
-        }
-    }
-}
-
-fn cubic(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
-    0.5 * (2.0 * p1
-        + (-p0 + p2) * t
-        + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
-        + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn interleaved(frames: &[[f32; 2]]) -> Vec<f32> {
-        frames.iter().flat_map(|frame| *frame).collect()
-    }
-
-    #[test]
-    fn cubic_passes_through_linear_points() {
-        assert_eq!(cubic(0.0, 1.0, 2.0, 3.0, 0.0), 1.0);
-        assert!((cubic(0.0, 1.0, 2.0, 3.0, 0.5) - 1.5).abs() < 0.001);
-    }
-
-    #[test]
-    fn matching_rate_drops_the_startup_and_tail_frames() {
-        let mut resampler = CubicResampler::new(48_000, 48_000);
-        let mut output = Vec::new();
-        let first = interleaved(&[[0.0, 0.0], [1.0, -1.0], [2.0, -2.0]]);
-        let second = interleaved(&[[3.0, -3.0], [4.0, -4.0]]);
-        let third = interleaved(&[[5.0, -5.0]]);
-        resampler.process(&first, &mut output);
-        resampler.process(&second, &mut output);
-        resampler.process(&third, &mut output);
-
-        let left: Vec<f32> = output.chunks_exact(2).map(|frame| frame[0]).collect();
-        assert_eq!(left, vec![1.0, 2.0, 3.0]);
-    }
-
-    #[test]
-    fn downsampling_uses_approximately_half_the_frames() {
-        let mut resampler = CubicResampler::new(48_000, 24_000);
-        let mut output = Vec::new();
-        for _ in 0..10 {
-            let input = interleaved(&[[1.0, 1.0]; 10]);
-            resampler.process(&input, &mut output);
-        }
-        assert!((39..=60).contains(&(output.len() / 2)));
-    }
-
-    #[test]
-    fn upsampling_uses_approximately_twice_the_frames() {
-        let mut resampler = CubicResampler::new(24_000, 48_000);
-        let mut output = Vec::new();
-        for _ in 0..10 {
-            let input = interleaved(&[[1.0, 1.0]; 10]);
-            resampler.process(&input, &mut output);
-        }
-        assert!((180..=220).contains(&(output.len() / 2)));
-    }
 }

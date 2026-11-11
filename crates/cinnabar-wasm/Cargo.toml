@@ -4,20 +4,19 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Cinnabar GBA: experimental browser frontend"
+repository.workspace = true
+description = "Cinnabar GBA: browser arcade bindings for the headless core"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 cinnabar-core.workspace = true
-js-sys = "0.3"
+cinnabar-testrom.workspace = true
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = [
-    "CanvasRenderingContext2d",
-    "Document",
-    "Element",
-    "HtmlCanvasElement",
-    "ImageData",
-    "Window",
-] }
+
+# Rust emits bulk-memory and saturating-float instructions. The workspace
+# release profile strips the target_features section, so wasm-bindgen cannot
+# detect them; tell wasm-opt explicitly instead.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

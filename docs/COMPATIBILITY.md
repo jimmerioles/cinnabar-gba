@@ -19,6 +19,7 @@ homebrew ROM is present.
 | Audio | APU unit tests, Celeste Classic | passing |
 | BIOS HLE | SWI unit/integration tests | passing |
 | Frontend | headless smoke, self-test | passing |
+| Browser arcade | WASM build, audio worklet, gamepad/touch, IndexedDB saves, WebGL shaders | passing (manual) |
 
 Run the suite with:
 
@@ -76,5 +77,6 @@ Known PPU/timing issues:
   unusual command sequences may still differ.
 - EEPROM size is inferred from the first DMA transfer (6-bit or 14-bit address).
 - SOUNDBIAS amplitude resolution is modelled; the exact PWM output stage is not.
-- No link cable, netplay, save-state files outside the debugger slots, or
-  shaders yet.
+- No link cable, netplay, or save-state files outside the debugger slots yet.
+- The browser arcade targets modern browsers with WebGL2 and AudioWorklet. It
+  falls back to a 2D canvas and silent playback when those are unavailable.

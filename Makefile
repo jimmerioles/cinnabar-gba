@@ -1,4 +1,4 @@
-.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate smoke soak wasm roms demo-rom clean
+.PHONY: build run demo debug selftest builtins input celeste bench test lint fmt validate smoke soak wasm serve roms demo-rom clean
 
 CARGO ?= cargo
 ROM ?=
@@ -23,6 +23,9 @@ soak:
 
 wasm:
 	cd crates/cinnabar-wasm && wasm-pack build --target web --out-dir ../../web/pkg
+
+serve: wasm
+	python3 -m http.server -d web 8000
 
 selftest:
 	$(CARGO) run -p cinnabar-frontend -- --selftest

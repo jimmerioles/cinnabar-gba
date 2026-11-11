@@ -13,6 +13,11 @@
   <code>450+ fps headless</code> · <code>full ARM + Thumb validation</code> · <code>no BIOS required</code>
 </p>
 
+<p align="center">
+  <a href="https://jimmerioles.github.io/cinnabar-gba/"><strong>▶ Play the browser arcade</strong></a>
+  · no install, no ROM required for the built-in demos
+</p>
+
 > **Why “Cinnabar”?** The name comes from cinnabar, the red mineral
 > historically ground into vermilion pigment. Cinnabar Island from Pokémon Red
 > and Blue — and its GBA remakes FireRed and LeafGreen — is a deliberate nod,
@@ -47,6 +52,9 @@ HLE.
   viewers.
 - **Frontend polish**: gamepad support, LCD/ghosting/color shaders, a TOML
   config, key remapping, volume, and a cover-aware ROM library.
+- **Browser arcade** built on WebAssembly: AudioWorklet sound, gamepad and touch
+  input, persistent battery saves, WebGL LCD/CRT shaders, six built-in demos,
+  and a GitHub Pages deployment. Your ROM never leaves the browser.
 
 ## Quick start
 
@@ -91,6 +99,25 @@ Build a release binary:
 cargo build --release -p cinnabar-frontend
 ./target/release/cinnabar /path/to/game.gba
 ```
+
+### Browser arcade
+
+The same core compiles to WebAssembly and runs as a browser arcade:
+
+```bash
+cargo install wasm-pack   # once
+make serve
+```
+
+Open `http://localhost:8000`. A built-in cartridge boots immediately, so no ROM
+is needed; click the sound pill once to unlock audio. Load a legally dumped
+`.gba` file to play your own game. The page runs entirely locally — ROMs are
+never uploaded.
+
+The deployed arcade lives at
+[`jimmerioles.github.io/cinnabar-gba`](https://jimmerioles.github.io/cinnabar-gba/).
+Share a specific built-in demo with `?demo=input`, `?demo=tiled`, or one of the
+other cartridge names.
 
 Headless screenshot:
 
@@ -176,21 +203,50 @@ matching save file.
 The library is currently a terminal scanner/launcher; a graphical cover grid is
 still on the roadmap.
 
-## Browser preview
+## Browser arcade
 
-The headless core and a small canvas frontend build for WebAssembly. Install
-`wasm-pack`, then:
+The WebAssembly build is a full frontend, not a video preview. It boots one of
+six original cartridges immediately, plays audio through an AudioWorklet, maps
+keyboard, gamepad, and touch controls, persists SRAM/Flash/EEPROM saves in
+IndexedDB, and applies LCD/CRT processing in a WebGL2 shader.
+
+![Cinnabar Arcade running in a browser](docs/web-arcade.png)
 
 ```bash
-cd crates/cinnabar-wasm
-wasm-pack build --target web --out-dir ../../web/pkg
-cd ../..
-python3 -m http.server -d web 8000
+cargo install wasm-pack
+make serve
 ```
 
-Open `http://localhost:8000`, load a legally dumped `.gba` ROM, and use the
-keyboard. The browser preview is video-only for now; audio and gamepad support
-are follow-ups.
+Open `http://localhost:8000`. The built-in demos need no ROM. Drop in a
+legally dumped `.gba` file to play your own game; the file stays in this browser.
+Sound starts on the first tap or key press, as required by browser autoplay
+policies.
+
+The page is deployed to GitHub Pages by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) whenever `main`
+changes. If Pages is not already enabled for the repository, set
+**Settings → Pages → Source** to **GitHub Actions** once. It is a static site:
+no server, no ROMs, no BIOS, and no analytics.
+
+### Browser controls
+
+The desktop keyboard mapping still applies. In addition:
+
+| Key | Action |
+|---|---|
+| `F1` / `P` | Pause |
+| `F2` | Fast-forward |
+| `F3` | Debug HUD |
+| `F5` | PNG screenshot |
+| `F11` | Fullscreen |
+| `M` | Mute |
+
+Gamepads are detected automatically and use the standard mapping. On phones and
+tablets, an on-screen D-pad, A/B, L/R, Start, and Select appear below the
+screen. The **Remember this ROM** switch stores a ROM in this browser's
+IndexedDB so it reloads automatically; it is off by default. Battery saves are
+stored independently of that switch and can be exported or imported as `.sav`
+files.
 
 ## Manual testing without a ROM
 
@@ -283,7 +339,7 @@ cargo run -p cinnabar-frontend -- --list-builtins
 
 | Name | What it shows |
 |---|---|
-| `logo` | Red Cinnabar C on a dark blue field |
+| `logo` | Red Cinnabar C on a dark blue field, with a PSG chiptune loop |
 | `tiled` | Mode 0 tiles, a sprite, and alpha blending |
 | `input` | Keypad test screen |
 | `irq` | DMA3 fill + timer and VBlank interrupts |
@@ -539,7 +595,10 @@ The honest compatibility picture:
   still approximate, although mosaic, OBJ windows, and affine sprites render.
 - No graphical debugger panels, link cable, or netplay yet. Save states, rewind,
   text-mode PPU viewers, shaders, gamepads, config/key remapping, a ROM library,
-  and an experimental video-only browser preview are available.
+  and a full browser arcade are available.
+- The browser arcade is a static WebAssembly page. It needs WebGL2 for the
+  shaders and AudioWorklet for queue-based sound; without them it falls back to
+  a 2D canvas and silent play. It has no link cable support.
 - Commercial game compatibility is still a work in progress. The CPU, memory,
   and save foundations are validated; PPU edge cases and timing are the next
   compatibility frontier.

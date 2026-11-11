@@ -125,7 +125,7 @@ impl Args {
 /// Print the bundled cartridges and what they exercise.
 pub fn print_builtins() {
     println!("Bundled cartridges:");
-    println!("  logo      Red Cinnabar C on a dark blue field");
+    println!("  logo      Red Cinnabar C on a dark blue field, with a PSG chiptune");
     println!("  tiled     Mode 0 tiles, a sprite, and alpha blending");
     println!("  input     Keypad test screen: press keys and watch boxes light up");
     println!("  irq       DMA3 fill + timer and VBlank interrupts");

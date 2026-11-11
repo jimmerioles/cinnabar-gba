@@ -45,11 +45,12 @@ follow-ups.
   A graphical cover grid remains.
 - [x] Shaders: LCD grid, ghosting, and color correction.
 - [x] TOML config, key remapping, and volume control.
-- [x] Cubic audio resampling and volume control (buffer tuning remains optional).
-- [x] WASM build for the browser (experimental canvas frontend; audio and
-  gamepad support remain follow-ups).
+- [x] Cubic audio resampling and volume control, shared by both frontends.
+- [x] Browser arcade: WebAssembly frontend with AudioWorklet sound, gamepad and
+  touch controls, IndexedDB saves, WebGL LCD/CRT shaders, six built-in demos,
+  and a GitHub Pages deployment.
 
-v0.4 desktop polish and the experimental browser preview are in place.
+v0.4 desktop polish and the full browser arcade are in place.
 
 ## v0.5 — The moonshots
 

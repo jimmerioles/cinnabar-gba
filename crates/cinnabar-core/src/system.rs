@@ -112,6 +112,49 @@ impl System {
         &self.bus.ppu.framebuffer
     }
 
+    /// The APU's native output rate in Hz.
+    pub fn sample_rate(&self) -> u32 {
+        self.bus.apu.sample_rate()
+    }
+
+    pub fn title(&self) -> &str {
+        &self.bus.cart.title
+    }
+
+    pub fn game_code(&self) -> &str {
+        &self.bus.cart.game_code
+    }
+
+    /// The battery-backed save media detected for this cartridge.
+    pub fn save_type(&self) -> crate::cart::SaveType {
+        self.bus.save.kind
+    }
+
+    /// Raw battery-backed save bytes, suitable for writing a `.sav` file.
+    pub fn save_bytes(&self) -> &[u8] {
+        self.bus.save.bytes()
+    }
+
+    /// Restore battery-backed save bytes, normally from a `.sav` file.
+    pub fn load_save_bytes(&mut self, bytes: &[u8]) {
+        self.bus.save.load(bytes);
+    }
+
+    /// Whether the save media has changed since the last flush.
+    pub fn save_dirty(&self) -> bool {
+        self.bus.save.dirty
+    }
+
+    /// Record that the current save bytes have been persisted.
+    pub fn mark_save_clean(&mut self) {
+        self.bus.save.mark_clean();
+    }
+
+    /// Force a save flush even after loading unchanged bytes.
+    pub fn mark_save_dirty(&mut self) {
+        self.bus.save.dirty = true;
+    }
+
     /// Serialize the complete mutable machine state.
     pub fn save_state(&self) -> Result<Vec<u8>, SaveStateError> {
         let state = SaveState {
@@ -237,6 +280,37 @@ mod tests {
         assert_eq!(system.peek32(0x0200_0000), 0x1234_5678);
         system.poke16(0x0400_0000, 0x1F00);
         assert_eq!(system.bus.ppu.dispcnt, 0x1F00);
+    }
+
+    #[test]
+    fn save_media_round_trips_and_tracks_dirty_state() {
+        let mut rom = cinnabar_testrom::demo_rom();
+        rom[0x200..0x206].copy_from_slice(b"SRAM_V");
+        let mut system = System::new(Cartridge::new(rom.clone()));
+        assert_eq!(system.save_type(), crate::cart::SaveType::Sram);
+        assert!(!system.save_dirty());
+
+        system.bus.save.data[4] = 0xAB;
+        system.mark_save_dirty();
+        assert!(system.save_dirty());
+        let bytes = system.save_bytes().to_vec();
+        assert_eq!(bytes[4], 0xAB);
+
+        let mut restored = System::new(Cartridge::new(rom));
+        restored.load_save_bytes(&bytes);
+        assert_eq!(restored.save_bytes()[4], 0xAB);
+        assert!(!restored.save_dirty());
+
+        restored.mark_save_dirty();
+        assert!(restored.save_dirty());
+    }
+
+    #[test]
+    fn exposes_cartridge_and_audio_identity() {
+        let system = demo();
+        assert_eq!(system.sample_rate(), 48_000);
+        assert_eq!(system.game_code(), "CINB");
+        assert_eq!(system.title(), "CINNABAR");
     }
 
     #[test]

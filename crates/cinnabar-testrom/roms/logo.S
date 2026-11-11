@@ -58,5 +58,68 @@ fill:
     RECT 76, 32, 16, 96, 0x001F
     RECT 112, 64, 28, 24, 0x7FFF
 
+    @ A short PSG loop so the browser arcade has something to play as soon
+    @ as the visitor enables sound. VBlank drives the note sequencer.
+    ldr r0, =0x08000000 + irq_handler
+    ldr r1, =0x03007FFC
+    str r0, [r1]
+
+    mov r0, #0x04000000
+    mov r1, #1
+    mov r2, r0
+    add r2, r2, #0x200
+    strh r1, [r2]             @ IE: VBlank
+    strh r1, [r2, #8]         @ IME
+
+    mov r1, #0x80
+    strh r1, [r0, #0x84]      @ SOUNDCNT_X: master enable
+    ldr r1, =0x1177
+    strh r1, [r0, #0x80]      @ SOUNDCNT_L: CH1 both sides, volume 7
+    ldr r1, =0x0002
+    strh r1, [r0, #0x82]      @ SOUNDCNT_H: PSG volume 100%
+    ldr r1, =0xF080
+    strh r1, [r0, #0x62]      @ CH1 duty 50%, full volume
+    ldr r1, =0x8706
+    strh r1, [r0, #0x64]      @ CH1 frequency 1798, trigger
+
 hang:
     b hang
+
+irq_handler:
+    stmfd sp!, {r0-r7, lr}
+    mov r0, #0x04000000
+    add r0, r0, #0x200
+    ldrh r1, [r0, #2]
+    tst r1, #1
+    beq irq_done
+    mov r1, #1
+    strh r1, [r0, #2]         @ acknowledge VBlank
+
+    mov r2, #0x03000000
+    add r2, r2, #8
+    ldr r3, [r2]
+    add r3, r3, #1
+    str r3, [r2]
+    and r3, r3, #15
+    cmp r3, #0
+    bne irq_done
+
+    add r2, r2, #4
+    ldr r3, [r2]
+    add r3, r3, #1
+    and r3, r3, #7
+    str r3, [r2]
+    ldr r4, =0x08000000 + note_table
+    add r4, r4, r3, lsl #1
+    ldrh r1, [r4]
+    ldr r5, =0x8000
+    orr r1, r1, r5
+    mov r0, #0x04000000
+    strh r1, [r0, #0x64]
+
+irq_done:
+    ldmfd sp!, {r0-r7, pc}
+
+.align 2
+note_table:
+    .short 1798, 1825, 1849, 1881, 1899, 1923, 1899, 1881

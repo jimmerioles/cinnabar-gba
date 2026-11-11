@@ -1,10 +1,10 @@
 # GBA Emulator in Rust — Build Plan
 
 **Working name:** Cinnabar GBA
-**Status:** v0.4 frontend polish implemented, including an experimental
-video-only browser/WASM preview. See [`README.md`](README.md) and
-[`ROADMAP.md`](ROADMAP.md) for the current feature set, validation results, and
-remaining work.
+**Status:** v0.4 frontend polish implemented, including a playable browser/WASM
+arcade with audio, gamepad/touch input, saves, and shaders. See
+[`README.md`](README.md) and [`ROADMAP.md`](ROADMAP.md) for the current feature
+set, validation results, and remaining work.
 **Goal:** a legally dumped GBA game boots, runs at full speed with audio, saves persist, and a debugger makes it pleasant to fix bugs.
 
 **Not the goal:** cycle-perfect emulation, link cable, netplay, or a shader stack. Compatibility first, accuracy where it matters.
@@ -371,7 +371,7 @@ Read for understanding, not for copy-paste. Keep your implementation yours.
 | Bitflags | `bitflags` |
 | Tests | `proptest`, `insta`, `criterion` |
 | Gamepad (stretch) | `gilrs` |
-| WASM (stretch) | `wasm-bindgen`, `web-sys` |
+| WASM (stretch) | `wasm-bindgen`, AudioWorklet, WebGL2 |
 
 Keep `gba-core` dependencies tiny. No async runtime. No `tokio`. The emulator is a loop, not a web service.
 
@@ -449,8 +449,9 @@ A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have
 
 v0.2 and v0.3 are implemented, and the v0.4 frontend polish adds gamepad
 support, shaders, config/key remapping/volume, cubic audio resampling, a
-cover-aware ROM library scanner, and an experimental canvas/WASM preview. The
-remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
+cover-aware ROM library scanner, and a full browser arcade with AudioWorklet
+sound, touch controls, IndexedDB saves, and WebGL shaders. The remaining
+accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 Run the validation and smoke suites:
 

@@ -331,9 +331,8 @@ name = "cinnabar-wasm"
 version = "0.4.0"
 dependencies = [
  "cinnabar-core",
- "js-sys",
+ "cinnabar-testrom",
  "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
