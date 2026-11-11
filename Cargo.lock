@@ -296,7 +296,7 @@ checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
 name = "cinnabar-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bincode",
  "cinnabar-testrom",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "cinnabar-frontend"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "cinnabar-core",
@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "cinnabar-testrom"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "clap"

@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml"><img src="https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-FF3B2F" alt="Release v0.3.0"></a>
+  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/v0.4.0"><img src="https://img.shields.io/badge/release-v0.4.0-FF3B2F" alt="Release v0.4.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
