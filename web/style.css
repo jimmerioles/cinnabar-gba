@@ -390,7 +390,6 @@ h1 .accent {
   background:
     linear-gradient(118deg, rgba(255, 255, 255, 0.075), transparent 26%, transparent 68%, rgba(255, 255, 255, 0.035)),
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%);
-  mix-blend-mode: screen;
 }
 
 .screen-vignette {

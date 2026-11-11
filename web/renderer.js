@@ -88,6 +88,7 @@ export function createRenderer(canvas, preset = "off") {
       stencil: false,
       premultipliedAlpha: false,
       preserveDrawingBuffer: false,
+      desynchronized: true,
     });
   } catch (error) {
     console.warn("cinnabar: WebGL2 unavailable", error);
@@ -112,7 +113,7 @@ class CanvasRenderer {
     this.kind = "2d";
     this.canvas = canvas;
     this.preset = normalizePreset(preset);
-    this.context = canvas.getContext("2d", { alpha: false });
+    this.context = canvas.getContext("2d", { alpha: false, desynchronized: true });
     if (!this.context) {
       throw new Error("neither WebGL2 nor 2D canvas is available");
     }

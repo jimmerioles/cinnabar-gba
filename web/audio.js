@@ -15,6 +15,7 @@ export class AudioEngine {
     this.volume = 0.75;
     this.paused = false;
     this.stats = { type: "stats", queued: 0, underruns: 0, overruns: 0 };
+    this.statsReady = false;
     this.starting = null;
   }
 
@@ -67,6 +68,7 @@ export class AudioEngine {
       node.port.onmessage = (event) => {
         if (event.data?.type === "stats") {
           this.stats = event.data;
+          this.statsReady = true;
         }
       };
       node.connect(gain).connect(ctx.destination);
@@ -101,6 +103,7 @@ export class AudioEngine {
       this.node.port.postMessage({ type: "reset" });
     }
     this.stats = { type: "stats", queued: 0, underruns: 0, overruns: 0 };
+    this.statsReady = false;
   }
 
   setVolume(volume) {

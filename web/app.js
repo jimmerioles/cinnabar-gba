@@ -102,6 +102,7 @@ class Arcade {
     this.keyboardKeys = 0;
     this.gamepadKeys = 0;
     this.touchKeys = 0;
+    this.latchedKeys = 0;
     this.gamepadName = "";
     this.paused = false;
     this.fastForward = false;
@@ -219,6 +220,10 @@ class Arcade {
         }
       }
 
+      if (frames > 0) {
+        this.latchedKeys = 0;
+      }
+
       if (frames > 0 || this.needsRender) {
         this.renderer.draw(this.emulator.framebuffer_rgba());
         this.needsRender = false;
@@ -256,10 +261,13 @@ class Arcade {
       this.accumulator -= FRAME_MS;
     }
 
-    if (this.audio.active) {
+    // Wait for the first worklet report before steering on the queue. Before
+    // that, `queued` still reads zero and we would overfill the buffer by
+    // running extra frames during the worklet's startup window.
+    if (this.audio.active && this.audio.statsReady) {
       const samplesPerFrame = this.emulator.output_sample_rate() / GBA_FPS;
       const queued = this.audio.queuedFrames;
-      if (queued < samplesPerFrame * 2) {
+      if (queued < samplesPerFrame * 0.75) {
         frames = Math.max(frames, 1);
       } else if (queued > samplesPerFrame * 5) {
         frames = 0;
@@ -381,6 +389,7 @@ class Arcade {
     this.keyboardKeys = 0;
     this.gamepadKeys = 0;
     this.touchKeys = 0;
+    this.latchedKeys = 0;
     this.keys = 0;
     this.emulator.set_keys(0);
     this.emulator.set_output_rate(this.audio.active ? this.audio.sampleRate : 48000);
@@ -421,6 +430,7 @@ class Arcade {
     this.el.pauseBadge.hidden = !paused;
     this.audio.setPaused(paused);
     if (paused) {
+      this.latchedKeys = 0;
       this.el.fps.textContent = "paused";
       this.el.status.textContent = "Paused";
       this.flushSave();
@@ -800,7 +810,7 @@ class Arcade {
   }
 
   syncKeys() {
-    const keys = this.keyboardKeys | this.gamepadKeys | this.touchKeys;
+    const keys = this.keyboardKeys | this.gamepadKeys | this.touchKeys | this.latchedKeys;
     if (keys === this.keys) {
       return;
     }
@@ -848,6 +858,9 @@ class Arcade {
       console.warn("cinnabar: gamepad polling failed", error);
     }
 
+    // Latch newly seen button presses for at least one emulated frame. A very
+    // quick press can otherwise begin and end between two polls.
+    this.latchedKeys |= bits & ~this.gamepadKeys;
     this.gamepadKeys = bits;
     this.gamepadName = name;
   }
@@ -874,6 +887,7 @@ class Arcade {
         pointers.add(event.pointerId);
         button.setPointerCapture?.(event.pointerId);
         button.classList.add("pressed");
+        this.latchedKeys |= bit;
         this.setTouchKey(bit, true);
         this.enableAudio();
       };
@@ -1006,6 +1020,7 @@ class Arcade {
       this.keyboardKeys = 0;
       this.touchKeys = 0;
       this.gamepadKeys = 0;
+      this.latchedKeys = 0;
       this.syncKeys();
     });
 
@@ -1114,6 +1129,9 @@ class Arcade {
     if (bit !== undefined) {
       event.preventDefault();
       this.keyboardKeys |= bit;
+      if (!event.repeat) {
+        this.latchedKeys |= bit;
+      }
       this.syncKeys();
       if (!this.audio.active) {
         this.enableAudio();
