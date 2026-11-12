@@ -265,7 +265,7 @@ impl Bus {
             0x100..=0x10F => {
                 let index = ((offset - 0x100) / 4) as usize;
                 match (offset - 0x100) % 4 {
-                    0 => self.timers.read_reload(index),
+                    0 => self.timers.read_counter(index),
                     2 => self.timers.read_control(index),
                     _ => 0,
                 }
@@ -616,7 +616,7 @@ impl Bus {
             0x100..=0x10F => {
                 let index = ((offset - 0x100) / 4) as usize;
                 match (offset - 0x100) % 4 {
-                    0 => self.timers.read_reload(index),
+                    0 => self.timers.read_counter(index),
                     2 => self.timers.read_control(index),
                     _ => 0,
                 }
@@ -679,5 +679,15 @@ mod tests {
         bus.write16(0x0400_0200, 0x0001);
         assert_eq!(bus.peek16(0x0400_0200), 1);
         assert_eq!(bus.peek8(0x0400_0200), 1);
+    }
+
+    #[test]
+    fn timer_low_register_reads_the_running_counter() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        bus.write16(0x0400_0100, 0); // reload = 0
+        bus.write16(0x0400_0102, 0x80); // enable, prescaler 1
+        bus.step(32);
+
+        assert_eq!(bus.read16(0x0400_0100), 32);
     }
 }

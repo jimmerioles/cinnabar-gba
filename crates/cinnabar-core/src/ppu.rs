@@ -704,10 +704,12 @@ impl Ppu {
     }
 
     fn in_window(&self, h: u16, v: u16, x: usize, y: usize) -> bool {
-        let x1 = (h & 0xFF) as usize;
-        let x2 = (h >> 8) as usize;
-        let y1 = (v & 0xFF) as usize;
-        let y2 = (v >> 8) as usize;
+        // WINxH/WINxV store the right/bottom edge in the low byte and the
+        // left/top edge in the high byte.
+        let x2 = (h & 0xFF) as usize;
+        let x1 = (h >> 8) as usize;
+        let y2 = (v & 0xFF) as usize;
+        let y1 = (v >> 8) as usize;
         x >= x1 && x < x2 && y >= y1 && y < y2
     }
 
@@ -736,12 +738,17 @@ impl Ppu {
     }
 
     pub fn write_vram8(&mut self, addr: u32, value: u8) {
-        // A byte store to VRAM is duplicated into both bytes of the
-        // addressed halfword, matching the GBA's 16-bit video memory.
-        let len = self.vram.len();
-        let offset = Self::vram_offset((addr as usize) & !1);
-        self.vram[offset] = value;
-        self.vram[(offset + 1) % len] = value;
+        let offset = Self::vram_offset(addr as usize);
+        let bitmap_mode = self.dispcnt & 0x0007 >= 3;
+        let bg_end = if bitmap_mode { 0x1_4000 } else { 0x1_0000 };
+        if offset < bg_end {
+            // BG VRAM is a 16-bit bus; byte stores duplicate across both
+            // bytes of the halfword.
+            let half = offset & !1;
+            self.vram[half] = value;
+            self.vram[half + 1] = value;
+        }
+        // OBJ VRAM ignores 8-bit stores entirely.
     }
 
     pub fn write_vram16(&mut self, addr: u32, value: u16) {
@@ -770,11 +777,12 @@ impl Ppu {
     }
 
     pub fn write_palette8(&mut self, addr: u32, value: u8) {
-        // Palette byte stores are duplicated across the halfword too.
+        // Palette RAM is a 16-bit bus; byte stores duplicate across both
+        // bytes of the halfword.
         let len = self.palette.len();
-        let offset = (addr as usize & !1) % len;
-        self.palette[offset] = value;
-        self.palette[(offset + 1) % len] = value;
+        let half = ((addr as usize) & !1) % len;
+        self.palette[half] = value;
+        self.palette[(half + 1) % len] = value;
     }
 
     pub fn write_palette16(&mut self, addr: u32, value: u16) {
@@ -1078,6 +1086,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn byte_writes_duplicate_for_bg_and_palette_but_not_obj() {
+        let mut ppu = Ppu::new();
+        ppu.write_vram8(0x0000, 0xAB);
+        assert_eq!(ppu.read_vram16(0x0000), 0xABAB);
+
+        ppu.write_vram8(0x1_0000, 0xCD);
+        assert_eq!(ppu.read_vram16(0x1_0000), 0);
+
+        ppu.write_palette8(0x0002, 0xEF);
+        assert_eq!(ppu.read_palette16(0x0002), 0xEFEF);
+    }
+
+    #[test]
     fn bg_mosaic_snaps_to_the_block_top_left() {
         let mut ppu = Ppu::new();
         ppu.dispcnt = 0x0100;
@@ -1086,9 +1107,8 @@ mod tests {
         ppu.write_palette16(0x0500_0002, 0x001F);
         ppu.write_palette16(0x0500_0004, 0x03E0);
         ppu.write_vram16(0x0800, 0);
-        for (index, byte) in [0x11u8, 0x11, 0x22, 0x22].iter().enumerate() {
-            ppu.write_vram8(0x4000 + index as u32, *byte);
-        }
+        ppu.write_vram16(0x4000, 0x1111);
+        ppu.write_vram16(0x4002, 0x2222);
 
         ppu.render_line(0);
         assert_eq!(ppu.framebuffer[0], 0x001F);
@@ -1134,10 +1154,10 @@ mod tests {
     fn windows_use_separate_win0_win1_and_obj_flags() {
         let mut ppu = Ppu::new();
         ppu.dispcnt = 0x6000;
-        ppu.win0h = 8 << 8;
-        ppu.win0v = 160 << 8;
-        ppu.win1h = (20 << 8) | 10;
-        ppu.win1v = 160 << 8;
+        ppu.win0h = 8;
+        ppu.win0v = 160;
+        ppu.win1h = (10 << 8) | 20;
+        ppu.win1v = 160;
         ppu.winin = 0x0001 | (0x0002 << 8);
         ppu.winout = 0x3F;
 
@@ -1158,9 +1178,8 @@ mod tests {
         ppu.write_oam16(0, 0x0800);
         ppu.write_oam16(2, 8);
         ppu.write_oam16(4, 0);
-        for offset in 0..4 {
-            ppu.write_vram8(0x1_0000 + offset, 0xFF);
-        }
+        ppu.write_vram16(0x1_0000, 0xFFFF);
+        ppu.write_vram16(0x1_0002, 0xFFFF);
 
         let line = ppu.obj_window_line(0);
         assert!(line[8]);

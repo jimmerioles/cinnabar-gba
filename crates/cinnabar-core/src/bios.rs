@@ -54,7 +54,11 @@ fn register_ram_reset(bus: &mut Bus, flags: u32) {
         bus.ewram.fill(0);
     }
     if flags & (1 << 1) != 0 {
-        bus.iwram.fill(0);
+        // The BIOS preserves the top 0x200 bytes of IWRAM for the system,
+        // IRQ and BIOS stacks plus the user IRQ handler pointer. Games call
+        // RegisterRamReset from their own stack, so wiping it would destroy
+        // the caller's return address.
+        bus.iwram[..0x7E00].fill(0);
     }
     if flags & (1 << 2) != 0 {
         bus.ppu.palette.fill(0);
@@ -132,8 +136,8 @@ fn cpu_set(bus: &mut Bus, cpu: &mut Cpu) {
     let dst = cpu.r[1];
     let control = cpu.r[2];
     let count = (control & 0x1F_FFFF) as usize;
-    let word = control & (1 << 24) != 0;
-    let fill = control & (1 << 26) != 0;
+    let word = control & (1 << 26) != 0;
+    let fill = control & (1 << 24) != 0;
 
     if word {
         let value = if fill { bus.read32(src) } else { 0 };
@@ -189,10 +193,26 @@ fn read_u24(bus: &mut Bus, addr: &mut u32) -> usize {
     value
 }
 
+/// Write decompressed bytes to the destination. The VRAM variants of the BIOS
+/// decompressors write 16-bit units, so an odd trailing byte is dropped.
+fn write_output(bus: &mut Bus, dst: u32, bytes: &[u8], vram: bool) {
+    if vram {
+        for (index, pair) in bytes.chunks_exact(2).enumerate() {
+            bus.write16(
+                dst.wrapping_add((index * 2) as u32),
+                u16::from_le_bytes([pair[0], pair[1]]),
+            );
+        }
+    } else {
+        for (index, &byte) in bytes.iter().enumerate() {
+            bus.write8(dst.wrapping_add(index as u32), byte);
+        }
+    }
+}
+
 fn lz77(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     let mut src = cpu.r[0];
-    let mut dst = cpu.r[1];
-    let _ = vram;
+    let dst = cpu.r[1];
     let header = bus.read8(src);
     src = src.wrapping_add(1);
     if header != 0x10 {
@@ -205,7 +225,8 @@ fn lz77(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     while written < size {
         let flags = bus.read8(src);
         src = src.wrapping_add(1);
-        for bit in 0..8 {
+        // LZ77 flag bytes are read most-significant bit first.
+        for bit in (0..8).rev() {
             if written >= size {
                 break;
             }
@@ -222,26 +243,22 @@ fn lz77(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
                     let index = window.len().saturating_sub(displacement);
                     let value = window.get(index).copied().unwrap_or(0);
                     window.push(value);
-                    bus.write8(dst, value);
-                    dst = dst.wrapping_add(1);
                     written += 1;
                 }
             } else {
                 let value = bus.read8(src);
                 src = src.wrapping_add(1);
                 window.push(value);
-                bus.write8(dst, value);
-                dst = dst.wrapping_add(1);
                 written += 1;
             }
         }
     }
+    write_output(bus, dst, &window, vram);
 }
 
 fn rle(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     let mut src = cpu.r[0];
-    let mut dst = cpu.r[1];
-    let _ = vram;
+    let dst = cpu.r[1];
     let header = bus.read8(src);
     src = src.wrapping_add(1);
     if header != 0x30 {
@@ -249,11 +266,13 @@ fn rle(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     }
     let size = read_u24(bus, &mut src);
     let mut written = 0usize;
+    let mut output = Vec::with_capacity(size);
 
     while written < size {
         let flags = bus.read8(src);
         src = src.wrapping_add(1);
-        for bit in 0..8 {
+        // RLE flag bytes are read most-significant bit first.
+        for bit in (0..8).rev() {
             if written >= size {
                 break;
             }
@@ -265,19 +284,18 @@ fn rle(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
                     if written >= size {
                         break;
                     }
-                    bus.write8(dst, value);
-                    dst = dst.wrapping_add(1);
+                    output.push(value);
                     written += 1;
                 }
             } else {
                 let value = bus.read8(src);
                 src = src.wrapping_add(1);
-                bus.write8(dst, value);
-                dst = dst.wrapping_add(1);
+                output.push(value);
                 written += 1;
             }
         }
     }
+    write_output(bus, dst, &output, vram);
 }
 
 fn huffman(bus: &mut Bus, cpu: &mut Cpu) {
@@ -289,7 +307,6 @@ fn huffman(bus: &mut Bus, cpu: &mut Cpu) {
 fn diff8(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     let mut src = cpu.r[0];
     let dst = cpu.r[1];
-    let _ = vram;
     let header = bus.read8(src);
     src = src.wrapping_add(1);
     if header != 0x81 {
@@ -297,10 +314,12 @@ fn diff8(bus: &mut Bus, cpu: &mut Cpu, vram: bool) {
     }
     let size = read_u24(bus, &mut src);
     let mut value = 0u8;
+    let mut output = Vec::with_capacity(size);
     for i in 0..size {
         value = value.wrapping_add(bus.read8(src.wrapping_add(i as u32)));
-        bus.write8(dst.wrapping_add(i as u32), value);
+        output.push(value);
     }
+    write_output(bus, dst, &output, vram);
 }
 
 fn diff16(bus: &mut Bus, cpu: &mut Cpu) {
@@ -431,4 +450,71 @@ fn midi_key_to_freq(cpu: &mut Cpu) {
     let fine = cpu.r[1] as f64 / 256.0;
     let frequency = 440.0 * 2f64.powf((key + fine - 69.0) / 12.0);
     cpu.r[0] = (frequency * 65536.0) as u32;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cart::Cartridge;
+
+    #[test]
+    fn register_ram_reset_preserves_the_reserved_top_of_iwram() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        bus.iwram.fill(0xAA);
+        let mut cpu = Cpu::new();
+        cpu.r[0] = 0x02;
+
+        handle_swi(&mut bus, &mut cpu, 0x01);
+
+        assert!(bus.iwram[..0x7E00].iter().all(|&byte| byte == 0));
+        assert!(bus.iwram[0x7E00..].iter().all(|&byte| byte == 0xAA));
+    }
+
+    #[test]
+    fn lz77_reads_flag_bits_most_significant_first() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        let compressed = [0x10, 0x04, 0x00, 0x00, 0x40, b'A', 0x00, 0x00];
+        for (index, &byte) in compressed.iter().enumerate() {
+            bus.write8(0x0200_0000 + index as u32, byte);
+        }
+
+        let mut cpu = Cpu::new();
+        cpu.r[0] = 0x0200_0000;
+        cpu.r[1] = 0x0200_0100;
+        handle_swi(&mut bus, &mut cpu, 0x11);
+
+        assert_eq!(&bus.ewram[0x100..0x104], b"AAAA");
+    }
+
+    #[test]
+    fn rle_reads_flag_bits_most_significant_first() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        let compressed = [0x30, 0x04, 0x00, 0x00, 0x80, b'A', 0x01];
+        for (index, &byte) in compressed.iter().enumerate() {
+            bus.write8(0x0200_0000 + index as u32, byte);
+        }
+
+        let mut cpu = Cpu::new();
+        cpu.r[0] = 0x0200_0000;
+        cpu.r[1] = 0x0200_0100;
+        handle_swi(&mut bus, &mut cpu, 0x14);
+
+        assert_eq!(&bus.ewram[0x100..0x104], b"AAAA");
+    }
+
+    #[test]
+    fn cpu_set_uses_bit_26_for_word_size_and_bit_24_for_fill() {
+        let mut bus = Bus::new(Cartridge::new(vec![0; 0xC0]));
+        bus.write32(0x0200_0000, 0x1122_3344);
+        bus.write32(0x0200_0004, 0x5566_7788);
+
+        let mut cpu = Cpu::new();
+        cpu.r[0] = 0x0200_0000;
+        cpu.r[1] = 0x0200_0100;
+        cpu.r[2] = (1 << 26) | 2; // 32-bit copy of two words
+        handle_swi(&mut bus, &mut cpu, 0x0B);
+
+        assert_eq!(bus.read32(0x0200_0100), 0x1122_3344);
+        assert_eq!(bus.read32(0x0200_0104), 0x5566_7788);
+    }
 }
