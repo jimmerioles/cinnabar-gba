@@ -107,7 +107,9 @@ impl Ppu {
     pub fn new() -> Self {
         Self {
             vcount: 0,
-            dispcnt: 0,
+            // The GBA powers up with forced blank enabled so the LCD stays
+            // blank until software configures a display mode.
+            dispcnt: 0x0080,
             dispstat: 0,
             bgcnt: [0; 4],
             bghofs: [0; 4],
@@ -1187,6 +1189,18 @@ mod tests {
         assert!(line[8]);
         assert!(line[15]);
         assert!(!line[16]);
+    }
+
+    #[test]
+    fn powers_up_in_forced_blank() {
+        let mut ppu = Ppu::new();
+        assert_eq!(ppu.dispcnt, 0x0080);
+        ppu.render_line(0);
+        assert!(
+            ppu.framebuffer[..SCREEN_WIDTH]
+                .iter()
+                .all(|&pixel| pixel == 0x7FFF)
+        );
     }
 
     #[test]

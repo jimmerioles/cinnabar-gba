@@ -47,8 +47,8 @@ directory.
 
 | Title | Region | Save type | Coverage |
 |---|---|---|---|
-| The Legend of Zelda: The Minish Cap | Europe (BZMP) | EEPROM 8K | boot, intro, file select, new-file creation, save reload, gameplay |
-| Pokémon FireRed Version | US (BPRE) | Flash 128K | boot, flash-ID detection, New Game, save, overwrite, reload, gameplay |
+| The Legend of Zelda: The Minish Cap | Europe (BZMP) | EEPROM 8K | boot, intro, file select, new-file creation, save reload, gameplay, audio |
+| Pokémon FireRed Version | US (BPRE) | Flash 128K | boot, flash-ID detection, New Game, save, overwrite, reload, gameplay, audio |
 
 The `drive` example replays a scripted input sequence and writes one PNG per
 step, which makes commercial boot and gameplay checks reproducible:
@@ -59,6 +59,13 @@ cargo run -p cinnabar-core --example drive -- \
 ```
 
 Each argument is `<frames>:<keys-hex>`.
+
+`audio_dump` writes a 16-bit stereo WAV for audio inspection:
+
+```bash
+cargo run -p cinnabar-core --example audio_dump -- \
+  test-roms/commercial/pokemon-firered.gba /tmp/pokemon.wav 900
+```
 
 ## Long-run soak
 
