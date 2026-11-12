@@ -185,7 +185,14 @@ impl SaveMedia {
                 // The final zero bit closes the write transfer.
                 self.eeprom.phase = EepromPhase::Idle;
             }
-            EepromPhase::Read => {}
+            EepromPhase::Read => {
+                // A write during a read reply starts a new command, matching
+                // the chip-select edge. This keeps a truncated read from
+                // swallowing the next request.
+                self.eeprom.phase = EepromPhase::Idle;
+                self.eeprom.command = bit;
+                self.eeprom.command_bits = 1;
+            }
         }
     }
 
@@ -205,7 +212,15 @@ impl SaveMedia {
         }
         if state.output_bits <= 68 {
             let shift = 68 - state.output_bits;
-            return ((state.data >> shift) & 1) as u8;
+            let bit = ((state.data >> shift) & 1) as u8;
+            if state.output_bits == 68 {
+                // The transfer is complete after the 64th data bit. Returning
+                // to idle here lets the next request start immediately; some
+                // games read several blocks back-to-back without an extra
+                // clock.
+                state.phase = EepromPhase::Idle;
+            }
+            return bit;
         }
         state.phase = EepromPhase::Idle;
         1
@@ -261,10 +276,17 @@ impl SaveMedia {
     }
 
     fn flash_id_byte(&self, addr: u32) -> u8 {
+        // 64K parts report a Panasonic MN63F805MNP; 128K parts report a
+        // Sanyo LE26FV10N1TS. The IDs are byte-swapped in the same way as
+        // the 16-bit values used by hardware documentation.
+        let (manufacturer, device) = if self.kind == SaveType::Flash128K {
+            (0x62, 0x13)
+        } else {
+            (0x32, 0x1B)
+        };
         match addr & 0xFFFF {
-            0 => 0x62,
-            1 if self.kind == SaveType::Flash128K => 0x1B,
-            1 => 0x13,
+            0 => manufacturer,
+            1 => device,
             _ => 0,
         }
     }
@@ -520,7 +542,7 @@ mod tests {
         let mut save = SaveMedia::new(SaveType::Flash128K);
         flash_unlock(&mut save, 0x90);
         assert_eq!(save.read8(0x0E00_0000), 0x62);
-        assert_eq!(save.read8(0x0E00_0001), 0x1B);
+        assert_eq!(save.read8(0x0E00_0001), 0x13);
         save.write8(0x0E00_0000, 0xF0);
         save.data[0] = 0x12;
         assert_eq!(save.read8(0x0E00_0000), 0x12);
@@ -532,6 +554,14 @@ mod tests {
         flash_unlock(&mut save, 0xB0);
         save.write8(0x0E00_0000, 0);
         assert_eq!(save.read8(0x0E00_0000), 0x12);
+    }
+
+    #[test]
+    fn flash_64k_reports_the_panasonic_id() {
+        let mut save = SaveMedia::new(SaveType::Flash64K);
+        flash_unlock(&mut save, 0x90);
+        assert_eq!(save.read8(0x0E00_0000), 0x32);
+        assert_eq!(save.read8(0x0E00_0001), 0x1B);
     }
 
     #[test]
@@ -562,6 +592,42 @@ mod tests {
         );
         assert_eq!(read_block(&mut save, 14, address), payload);
         assert!(save.dirty);
+    }
+
+    #[test]
+    fn eeprom_reads_consecutive_blocks_back_to_back() {
+        let mut save = SaveMedia::new(SaveType::Eeprom8K);
+        let first = 0x1122_3344_5566_7788u64;
+        let second = 0x99AA_BBCC_DDEE_FF00u64;
+        write_block(&mut save, 14, 0, first);
+        write_block(&mut save, 14, 1, second);
+
+        // Real games issue one 68-bit read per block without an extra clock
+        // pulse between requests. The second read must not return all ones.
+        assert_eq!(read_block(&mut save, 14, 0), first);
+        assert_eq!(read_block(&mut save, 14, 1), second);
+        assert_eq!(read_block(&mut save, 14, 0), first);
+    }
+
+    #[test]
+    fn eeprom_short_read_does_not_swallow_the_next_command() {
+        let mut save = SaveMedia::new(SaveType::Eeprom8K);
+        let first = 0x0123_4567_89AB_CDEFu64;
+        write_block(&mut save, 14, 0, first);
+
+        // Begin a read of block 0, but only clock eight reply bits.
+        let mut request = vec![1, 1];
+        request.extend(std::iter::repeat_n(0, 14));
+        request.push(0);
+        send_bits(&mut save, &request);
+        for _ in 0..8 {
+            let _ = save.eeprom_read_bit();
+        }
+
+        // A new write must still be accepted after the short read.
+        let second = 0xFEDC_BA98_7654_3210u64;
+        write_block(&mut save, 14, 1, second);
+        assert_eq!(read_block(&mut save, 14, 1), second);
     }
 
     #[test]

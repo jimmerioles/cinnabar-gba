@@ -558,7 +558,9 @@ impl Ppu {
                 }
 
                 let candidate = Candidate {
-                    color: self.palette16(palette_index),
+                    // Object palettes live in the second 256-entry half of
+                    // palette RAM; backgrounds use the first half.
+                    color: self.palette16(0x100 + palette_index),
                     priority,
                     layer: Layer::Obj,
                     semi,
@@ -1185,6 +1187,27 @@ mod tests {
         assert!(line[8]);
         assert!(line[15]);
         assert!(!line[16]);
+    }
+
+    #[test]
+    fn sprites_read_the_object_palette() {
+        let mut ppu = Ppu::new();
+        ppu.dispcnt = 0x1000; // OBJ layer enabled, backgrounds off.
+        // Entry 1 in the background palette is red; the matching object
+        // palette entry is green. A sprite must see the object palette.
+        ppu.write_palette16(0x0500_0002, 0x001F);
+        ppu.write_palette16(0x0500_0202, 0x03E0);
+
+        // 8x8 sprite at (0, 0) using tile 0 and palette bank 0.
+        ppu.write_oam16(0, 0x0000);
+        ppu.write_oam16(2, 0x0000);
+        ppu.write_oam16(4, 0x0000);
+        // First pixel of the tile uses colour index 1.
+        ppu.write_vram16(0x1_0000, 0x1111);
+
+        ppu.render_line(0);
+        assert_eq!(ppu.framebuffer[0], 0x03E0);
+        assert_ne!(ppu.framebuffer[0], 0x001F);
     }
 
     #[test]

@@ -39,6 +39,27 @@ also runs Celeste Classic when `test-roms/homebrew/celeste.gba` is present.
 This boots every bundled cartridge headlessly and checks that the frontend and
 core agree on a sane frame. It runs in CI.
 
+## Verified commercial titles
+
+These were checked against legally dumped images; commercial ROMs are not part of
+the repository. Put local copies in the gitignored `test-roms/commercial/`
+directory.
+
+| Title | Region | Save type | Coverage |
+|---|---|---|---|
+| The Legend of Zelda: The Minish Cap | Europe (BZMP) | EEPROM 8K | boot, intro, file select, new-file creation, save reload, gameplay |
+| Pokémon FireRed Version | US (BPRE) | Flash 128K | boot, flash-ID detection, New Game, save, overwrite, reload, gameplay |
+
+The `drive` example replays a scripted input sequence and writes one PNG per
+step, which makes commercial boot and gameplay checks reproducible:
+
+```bash
+cargo run -p cinnabar-core --example drive -- \
+  test-roms/commercial/minish-cap.gba /tmp/minish 900:0 5:8 120:0
+```
+
+Each argument is `<frames>:<keys-hex>`.
+
 ## Long-run soak
 
 Use a legally dumped ROM you own:
