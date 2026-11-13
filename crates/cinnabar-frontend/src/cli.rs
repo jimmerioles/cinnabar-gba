@@ -6,6 +6,8 @@ use anyhow::{Result, bail};
 use cinnabar_core::Cartridge;
 use clap::Parser;
 
+use crate::keymap::KeyboardLayout;
+
 /// A clean-room Game Boy Advance emulator.
 #[derive(Debug, Parser)]
 #[command(
@@ -57,6 +59,10 @@ pub struct Args {
     /// Read settings from a TOML config file.
     #[arg(long, value_name = "PATH")]
     pub config: Option<PathBuf>,
+
+    /// Keyboard layout preset: ergonomic, classic, or numpad.
+    #[arg(long, value_name = "LAYOUT")]
+    pub keyboard_layout: Option<KeyboardLayout>,
 
     /// Scan a ROM library directory and list its games.
     #[arg(long, value_name = "DIR")]
@@ -203,6 +209,20 @@ mod tests {
         let args = Args::try_parse_from(["cinnabar", "--demo"]).expect("valid flags");
         assert!(args.validate().is_ok());
         assert_eq!(args.rom_path(), None);
+    }
+
+    #[test]
+    fn accepts_a_keyboard_layout_preset() {
+        let args = Args::try_parse_from(["cinnabar", "--demo", "--keyboard-layout", "classic"])
+            .expect("valid flags");
+        assert_eq!(args.keyboard_layout, Some(KeyboardLayout::Classic));
+    }
+
+    #[test]
+    fn rejects_an_unknown_keyboard_layout() {
+        assert!(
+            Args::try_parse_from(["cinnabar", "--demo", "--keyboard-layout", "dvorak"]).is_err()
+        );
     }
 
     #[test]

@@ -584,7 +584,8 @@ input[type="range"] {
   accent-color: var(--red);
 }
 
-.shader-control select {
+.shader-control select,
+.keyboard-control select {
   min-height: 34px;
   padding: 0 9px;
   border: 1px solid var(--line-strong);

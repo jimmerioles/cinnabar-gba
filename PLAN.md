@@ -448,10 +448,10 @@ A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have
 ## Current status and next work
 
 v0.2 and v0.3 are implemented, and the v0.4 frontend polish adds gamepad
-support, shaders, config/key remapping/volume, cubic audio resampling, a
-cover-aware ROM library scanner, and a full browser arcade with AudioWorklet
-sound, touch controls, IndexedDB saves, and WebGL shaders. The remaining
-accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
+support, shaders, config with keyboard presets, per-key remapping and volume,
+cubic audio resampling, a cover-aware ROM library scanner, and a full browser
+arcade with AudioWorklet sound, touch controls, IndexedDB saves, and WebGL
+shaders. The remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 Run the validation and smoke suites:
 

@@ -52,7 +52,11 @@ fn main() -> Result<()> {
         .map(video::Shader::parse)
         .transpose()?
         .unwrap_or_default();
-    let keymap = keymap::KeyMap::from_config(&file_config.keys)?;
+    let layout = args
+        .keyboard_layout
+        .or(file_config.keyboard_layout)
+        .unwrap_or_default();
+    let keymap = keymap::KeyMap::from_config(layout, &file_config.keys)?;
 
     let library_dir = args.library.clone().or(file_config.library.clone());
     let mut selected_rom = args.rom_path().map(Path::to_path_buf);

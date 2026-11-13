@@ -44,7 +44,7 @@ follow-ups.
 - [x] ROM library scanner with cover discovery and save management.
   A graphical cover grid remains.
 - [x] Shaders: LCD grid, ghosting, and color correction.
-- [x] TOML config, key remapping, and volume control.
+- [x] TOML config with keyboard presets and per-key remapping, and volume control.
 - [x] Cubic audio resampling and volume control, shared by both frontends.
 - [x] Browser arcade: WebAssembly frontend with AudioWorklet sound, gamepad and
   touch controls, IndexedDB saves, WebGL LCD/CRT shaders, six built-in demos,

@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 
+use crate::keymap::KeyboardLayout;
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -14,6 +16,7 @@ pub struct Config {
     pub shader: Option<String>,
     pub volume: Option<f32>,
     pub library: Option<PathBuf>,
+    pub keyboard_layout: Option<KeyboardLayout>,
     #[serde(default)]
     pub keys: BTreeMap<String, String>,
 }
@@ -56,21 +59,28 @@ mod tests {
 scale = 3
 shader = "lcd,color"
 volume = 0.8
+keyboard_layout = "classic"
 
 [keys]
-A = "a, z"
-L = "q"
+A = "space"
+L = "semicolon"
 "#,
         )
         .expect("valid config");
         assert_eq!(config.scale, Some(3));
         assert_eq!(config.shader.as_deref(), Some("lcd,color"));
         assert_eq!(config.volume, Some(0.8));
-        assert_eq!(config.keys.get("A").map(String::as_str), Some("a, z"));
+        assert_eq!(config.keyboard_layout, Some(KeyboardLayout::Classic));
+        assert_eq!(config.keys.get("A").map(String::as_str), Some("space"));
     }
 
     #[test]
     fn rejects_misspelled_fields() {
         assert!(toml::from_str::<Config>("scalee = 3").is_err());
+    }
+
+    #[test]
+    fn rejects_unknown_keyboard_layouts() {
+        assert!(toml::from_str::<Config>(r#"keyboard_layout = "split""#).is_err());
     }
 }

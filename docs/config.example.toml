@@ -11,19 +11,47 @@ scale = 4
 shader = "none"
 volume = 1.0
 
+# Keyboard layout preset (change this value to switch):
+#   ergonomic (default) - ESDF D-pad, J/K face, A/L shoulders
+#   classic             - arrow D-pad, Z/X face, A/S shoulders
+#   numpad              - arrow D-pad, numpad face/shoulders/Start/Select
+keyboard_layout = "ergonomic"
+
 # Optional default directory for --library.
 # library = "/home/you/Games/gba"
 
-# Keyboard bindings. Each button accepts one or more comma-separated keys.
-# Defaults are shown here; uncomment a line to replace that button.
+# Per-button overrides applied on top of the selected preset.
+# Each button accepts one or more comma-separated keys.
+#
+# Key names include single letters/digits ("a", "1"), "enter", "space",
+# "backspace", "tab", arrow names ("up", "down", "left", "right"), function
+# keys ("f1".."f12"), "shift"/"lshift"/"rshift", "ctrl", "alt", punctuation
+# names ("comma", "semicolon", "slash", "minus", ...), and numpad keys
+# ("numpad0".."numpad9", "numpadenter", "numpadadd", "numpadsubtract",
+# "numpadmultiply", "numpaddivide", "numpaddecimal"). "kp0".."kp9" and
+# "kpenter" work as short aliases. Each key can only trigger one button;
+# conflicting bindings are rejected.
 [keys]
-# A = "a, z"
-# B = "s, x"
+# Ergonomic defaults:
+# Up = "e"
+# Down = "d"
+# Left = "s"
+# Right = "f"
+# B = "j"
+# A = "k"
+# L = "a"
+# R = "l"
 # Start = "enter"
 # Select = "backspace"
-# Up = "up"
-# Down = "down"
-# Left = "left"
-# Right = "right"
-# L = "q"
-# R = "e"
+
+# Example: a WASD variant on top of the ergonomic preset. Uncomment the
+# whole block to keep WASD and move the shoulders off the movement keys.
+# Up = "w"
+# Down = "s"
+# Left = "a"
+# Right = "d"
+# L = "lshift"
+# R = "o"
+
+# Example: replace one button with multiple keys.
+# A = "space, g"

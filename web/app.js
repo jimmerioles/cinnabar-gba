@@ -22,19 +22,74 @@ const KEYS = Object.freeze({
   L: 1 << 9,
 });
 
-const KEY_MAP = Object.freeze({
-  KeyZ: KEYS.A,
-  KeyA: KEYS.A,
-  KeyX: KEYS.B,
-  KeyS: KEYS.B,
-  Enter: KEYS.START,
-  Backspace: KEYS.SELECT,
-  ArrowRight: KEYS.RIGHT,
-  ArrowLeft: KEYS.LEFT,
-  ArrowUp: KEYS.UP,
-  ArrowDown: KEYS.DOWN,
-  KeyQ: KEYS.L,
-  KeyE: KEYS.R,
+// Keep these presets in sync with crates/cinnabar-frontend/src/keymap.rs.
+const KEY_MAPS = Object.freeze({
+  ergonomic: Object.freeze({
+    KeyE: KEYS.UP,
+    KeyS: KEYS.LEFT,
+    KeyD: KEYS.DOWN,
+    KeyF: KEYS.RIGHT,
+    KeyJ: KEYS.B,
+    KeyK: KEYS.A,
+    KeyA: KEYS.L,
+    KeyL: KEYS.R,
+    Enter: KEYS.START,
+    Backspace: KEYS.SELECT,
+  }),
+  classic: Object.freeze({
+    ArrowUp: KEYS.UP,
+    ArrowDown: KEYS.DOWN,
+    ArrowLeft: KEYS.LEFT,
+    ArrowRight: KEYS.RIGHT,
+    KeyZ: KEYS.B,
+    KeyX: KEYS.A,
+    KeyA: KEYS.L,
+    KeyS: KEYS.R,
+    Enter: KEYS.START,
+    Backspace: KEYS.SELECT,
+  }),
+  numpad: Object.freeze({
+    ArrowUp: KEYS.UP,
+    ArrowDown: KEYS.DOWN,
+    ArrowLeft: KEYS.LEFT,
+    ArrowRight: KEYS.RIGHT,
+    Numpad1: KEYS.B,
+    Numpad2: KEYS.A,
+    Numpad4: KEYS.L,
+    Numpad6: KEYS.R,
+    NumpadEnter: KEYS.START,
+    NumpadDecimal: KEYS.SELECT,
+  }),
+});
+
+const LAYOUT_LABELS = Object.freeze({
+  ergonomic: Object.freeze({
+    A: "K",
+    B: "J",
+    Start: "Enter",
+    Select: "Backspace",
+    DPad: "E/S/D/F",
+    L: "A",
+    R: "L",
+  }),
+  classic: Object.freeze({
+    A: "X",
+    B: "Z",
+    Start: "Enter",
+    Select: "Backspace",
+    DPad: "Arrow keys",
+    L: "A",
+    R: "S",
+  }),
+  numpad: Object.freeze({
+    A: "Numpad 2",
+    B: "Numpad 1",
+    Start: "Numpad Enter",
+    Select: "Numpad Decimal",
+    DPad: "Arrow keys",
+    L: "Numpad 4",
+    R: "Numpad 6",
+  }),
 });
 
 const BUILTINS = [
@@ -80,6 +135,7 @@ const DEFAULT_SETTINGS = {
   volume: 0.75,
   muted: false,
   shader: "lcd",
+  keyboardLayout: "ergonomic",
   rememberRom: false,
   lastHash: null,
   hud: false,
@@ -93,6 +149,7 @@ class Arcade {
     this.audio = new AudioEngine();
     this.store = new SaveStore();
     this.settings = loadSettings();
+    this.keyMap = KEY_MAPS[this.settings.keyboardLayout];
     this.renderer = createRenderer(this.el.canvas, this.settings.shader);
     this.el.canvas = this.renderer.canvas;
 
@@ -666,6 +723,19 @@ class Arcade {
     this.el.shader.value = this.settings.shader;
   }
 
+  updateKeyboardLayoutUi() {
+    const layout = this.settings.keyboardLayout;
+    this.keyMap = KEY_MAPS[layout];
+    this.el.keyboardLayout.value = layout;
+    const labels = LAYOUT_LABELS[layout];
+    document.querySelectorAll("[data-keyboard-key]").forEach((element) => {
+      const label = labels[element.dataset.keyboardKey];
+      if (label) {
+        element.textContent = label;
+      }
+    });
+  }
+
   updateRendererKind() {
     this.el.rendererKind.textContent =
       this.renderer.kind === "webgl2" ? "WebGL2" : "Canvas 2D";
@@ -678,6 +748,7 @@ class Arcade {
     this.el.hud.hidden = !this.settings.hud;
     this.applyVolumeSetting();
     this.updateShader();
+    this.updateKeyboardLayoutUi();
     this.updateSoundUi();
   }
 
@@ -940,6 +1011,21 @@ class Arcade {
       this.settings.shader = this.el.shader.value;
       this.updateShader();
       saveSettings(this.settings);
+      this.el.cabinet.focus({ preventScroll: true });
+    });
+
+    this.el.keyboardLayout.addEventListener("change", () => {
+      const layout = this.el.keyboardLayout.value;
+      if (!Object.hasOwn(KEY_MAPS, layout)) {
+        return;
+      }
+      this.settings.keyboardLayout = layout;
+      this.keyboardKeys = 0;
+      this.latchedKeys = 0;
+      this.syncKeys();
+      this.updateKeyboardLayoutUi();
+      saveSettings(this.settings);
+      this.el.cabinet.focus({ preventScroll: true });
     });
 
     this.el.rememberRom.addEventListener("change", async () => {
@@ -1125,7 +1211,7 @@ class Arcade {
         break;
     }
 
-    const bit = KEY_MAP[event.code];
+    const bit = this.keyMap[event.code];
     if (bit !== undefined) {
       event.preventDefault();
       this.keyboardKeys |= bit;
@@ -1143,7 +1229,7 @@ class Arcade {
     if (isTextTarget(event.target)) {
       return;
     }
-    const bit = KEY_MAP[event.code];
+    const bit = this.keyMap[event.code];
     if (bit !== undefined) {
       event.preventDefault();
       this.keyboardKeys &= ~bit;
@@ -1319,6 +1405,7 @@ function collectElements() {
     mute: byId("mute"),
     volume: byId("volume"),
     shader: byId("shader"),
+    keyboardLayout: byId("keyboard-layout"),
     builtinList: byId("builtin-list"),
     dropzone: byId("dropzone"),
     romInput: byId("rom-input"),
@@ -1376,6 +1463,9 @@ function loadSettings() {
       shader: ["off", "lcd", "crt"].includes(parsed.shader)
         ? parsed.shader
         : DEFAULT_SETTINGS.shader,
+      keyboardLayout: Object.hasOwn(KEY_MAPS, parsed.keyboardLayout)
+        ? parsed.keyboardLayout
+        : DEFAULT_SETTINGS.keyboardLayout,
       rememberRom: Boolean(parsed.rememberRom),
       hud: Boolean(parsed.hud),
       lastHash: typeof parsed.lastHash === "string" ? parsed.lastHash : null,

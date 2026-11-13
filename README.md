@@ -51,7 +51,8 @@ HLE.
   frame stepping, memory editing, save states, rewinding, and tile/palette/OAM
   viewers.
 - **Frontend polish**: gamepad support, LCD/ghosting/color shaders, a TOML
-  config, key remapping, volume, and a cover-aware ROM library.
+  config with keyboard presets and per-button remapping, volume, and a
+  cover-aware ROM library.
 - **Browser arcade** built on WebAssembly: AudioWorklet sound, gamepad and touch
   input, persistent battery saves, WebGL LCD/CRT shaders, six built-in demos,
   and a GitHub Pages deployment. Your ROM never leaves the browser.
@@ -134,15 +135,32 @@ cargo run -p cinnabar-frontend -- /path/to/game.gba --info
 
 ### Controls
 
+The default keyboard layout is a two-hand home-row split:
+
 | Key | GBA |
 |---|---|
-| `A` or `Z` | A |
-| `S` or `X` | B |
+| `E` | Up |
+| `S` | Left |
+| `D` | Down |
+| `F` | Right |
+| `J` | B |
+| `K` | A |
+| `A` | L |
+| `L` | R |
 | `Enter` | Start |
 | `Backspace` | Select |
-| Arrow keys | D-pad |
-| `Q` | L |
-| `E` | R |
+
+The left hand stays on `E`/`S`/`D`/`F` with `A` as the left shoulder; the right
+hand stays on `J`/`K` with `L` as the right shoulder. The key labels and GBA
+labels do not line up (`A` is L, `L` is R)—that is intentional: the outer
+home-row keys become the shoulders.
+
+This is the `ergonomic` preset. The config can switch to `classic` (arrow keys,
+`Z`/`X` face buttons, `A`/`S` shoulders) or `numpad`, and every button can be
+remapped individually. See [Configuration](#configuration).
+
+| Key | Emulator |
+|---|---|
 | `Esc` | Quit |
 | `F1` | Pause |
 | `F2` | Fast-forward |
@@ -170,16 +188,61 @@ scale = 4
 shader = "lcd,color"
 volume = 0.8
 
+# ergonomic (default), classic, or numpad
+keyboard_layout = "ergonomic"
+
+# Optional per-button overrides, applied on top of the preset.
 [keys]
-A = "a, z"
-B = "s, x"
-L = "q"
-R = "e"
+A = "space"
+R = "semicolon"
 ```
 
-Command-line flags override the config. Useful options:
+Button names are `A`, `B`, `Start`, `Select`, `Up`, `Down`, `Left`, `Right`,
+`L`, and `R` (case-insensitive). A button can have several keys separated by
+commas. Key names include letters, digits, `enter`, `space`, `backspace`, `tab`,
+arrow names, `f1`–`f12`, `shift`/`lshift`/`rshift`, `ctrl`, `alt`, punctuation
+names such as `comma`, `semicolon`, `slash`, and `minus`, and numpad keys such
+as `numpad0`–`numpad9`, `numpadenter`, and `numpaddecimal`; `kp0`–`kp9` and
+`kpenter` are aliases. Each key can only trigger one button; conflicting
+bindings are rejected.
+
+The built-in layouts are:
+
+| Layout | D-pad | B / A | L / R |
+|---|---|---|---|
+| `ergonomic` (default) | `E`/`S`/`D`/`F` | `J` / `K` | `A` / `L` |
+| `classic` | Arrow keys | `Z` / `X` | `A` / `S` |
+| `numpad` | Arrow keys | Numpad 1 / 2 | Numpad 4 / 6 |
+
+`ergonomic` and `classic` use `Enter`/`Backspace` for Start/Select; `numpad`
+uses `Numpad Enter`/`Numpad Decimal`. The `numpad` preset needs a full-size
+keyboard.
+
+Had a custom config built around the old `A`/`Z` face buttons? Set
+`keyboard_layout = "classic"` and keep your `A`/`B`/`L`/`R` overrides; the
+result is the old layout.
+
+Choose a preset in the config, or override it for one run with
+`--keyboard-layout classic`. For example, a WASD variant on top of the ergonomic
+preset:
+
+```toml
+keyboard_layout = "ergonomic"
+
+[keys]
+Up = "w"
+Down = "s"
+Left = "a"
+Right = "d"
+L = "lshift"
+R = "o"
+```
+
+Command-line flags override the config. `--keyboard-layout` changes the preset,
+but any per-button `[keys]` overrides still apply. Useful options:
 
 ```bash
+cinnabar game.gba --keyboard-layout classic
 cinnabar game.gba --shader lcd,color
 cinnabar game.gba --volume 0.7
 ```
@@ -230,7 +293,9 @@ no server, no ROMs, no BIOS, and no analytics.
 
 ### Browser controls
 
-The desktop keyboard mapping still applies. In addition:
+The browser offers the same three presets. Choose **Ergonomic**, **Classic**, or
+**Numpad** from the toolbar, and the choice is remembered in this browser. The
+native frontend additionally supports per-button remapping in `config.toml`.
 
 | Key | Action |
 |---|---|
@@ -316,13 +381,13 @@ not bundle it; fetch it from the upstream project:
 cargo run -p cinnabar-frontend -- test-roms/homebrew/celeste.gba
 ```
 
-Expected: the Celeste title screen, then gameplay after pressing Z or Enter.
+Expected: the Celeste title screen, then gameplay after pressing K or Enter.
 
 | Key | Action |
 |---|---|
-| Arrow keys | Move |
-| `Z` | Jump |
-| `X` | Dash |
+| `E` / `S` / `D` / `F` | Move |
+| `K` | Jump |
+| `J` | Dash |
 | `Enter` | Pause |
 | `Backspace` | Toggle screen shake |
 
@@ -594,8 +659,8 @@ The honest compatibility picture:
 - PPU timing is scanline-based. Dot-level effects and exact HBlank timing are
   still approximate, although mosaic, OBJ windows, and affine sprites render.
 - No graphical debugger panels, link cable, or netplay yet. Save states, rewind,
-  text-mode PPU viewers, shaders, gamepads, config/key remapping, a ROM library,
-  and a full browser arcade are available.
+  text-mode PPU viewers, shaders, gamepads, config with keyboard presets and
+  per-key remapping, a ROM library, and a full browser arcade are available.
 - The browser arcade is a static WebAssembly page. It needs WebGL2 for the
   shaders and AudioWorklet for queue-based sound; without them it falls back to
   a 2D canvas and silent play. It has no link cable support.

@@ -106,6 +106,14 @@
               <option value="crt">CRT</option>
             </select>
           </label>
+          <label class="keyboard-control">
+            <span class="sr-only">Keyboard layout</span>
+            <select id="keyboard-layout" title="Keyboard layout">
+              <option value="ergonomic" selected>Ergonomic</option>
+              <option value="classic">Classic</option>
+              <option value="numpad">Numpad</option>
+            </select>
+          </label>
           <button class="key" id="hud-toggle" type="button">HUD <kbd>F3</kbd></button>
         </div>
 
@@ -251,12 +259,12 @@
           <h3>Game Boy Advance</h3>
           <table>
             <tbody>
-              <tr><th>A</th><td><kbd>Z</kbd> or <kbd>A</kbd>, gamepad <kbd>A</kbd></td></tr>
-              <tr><th>B</th><td><kbd>X</kbd> or <kbd>S</kbd>, gamepad <kbd>B</kbd></td></tr>
-              <tr><th>Start</th><td><kbd>Enter</kbd>, gamepad <kbd>Start</kbd></td></tr>
-              <tr><th>Select</th><td><kbd>Backspace</kbd>, gamepad <kbd>Select</kbd></td></tr>
-              <tr><th>D-pad</th><td>Arrow keys, gamepad stick or D-pad</td></tr>
-              <tr><th>L / R</th><td><kbd>Q</kbd> / <kbd>E</kbd>, gamepad shoulders</td></tr>
+              <tr><th>A</th><td><kbd data-keyboard-key="A">K</kbd>, gamepad <kbd>A</kbd></td></tr>
+              <tr><th>B</th><td><kbd data-keyboard-key="B">J</kbd>, gamepad <kbd>B</kbd></td></tr>
+              <tr><th>Start</th><td><kbd data-keyboard-key="Start">Enter</kbd>, gamepad <kbd>Start</kbd></td></tr>
+              <tr><th>Select</th><td><kbd data-keyboard-key="Select">Backspace</kbd>, gamepad <kbd>Select</kbd></td></tr>
+              <tr><th>D-pad</th><td><kbd data-keyboard-key="DPad">E/S/D/F</kbd>, gamepad stick or D-pad</td></tr>
+              <tr><th>L / R</th><td><kbd data-keyboard-key="L">A</kbd> / <kbd data-keyboard-key="R">L</kbd>, gamepad shoulders</td></tr>
             </tbody>
           </table>
         </div>
@@ -275,8 +283,10 @@
         </div>
       </div>
       <p class="dialog-note">
-        Touch controls appear automatically on phones and tablets. Sound unlocks on your first
-        tap or key press; nothing is sent over the network.
+        Choose Ergonomic, Classic, or Numpad in the toolbar. The native app also supports
+        per-key remapping in <code>config.toml</code>. Touch controls appear automatically on
+        phones and tablets. Sound unlocks on your first tap or key press; nothing is sent over
+        the network.
       </p>
     </dialog>
 
