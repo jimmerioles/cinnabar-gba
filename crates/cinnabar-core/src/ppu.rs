@@ -1232,8 +1232,8 @@ mod tests {
             ppu.write_vram16((x * 2) as u32, x as u16);
         }
         ppu.render_line(0);
-        for x in 0..SCREEN_WIDTH {
-            assert_eq!(ppu.framebuffer[x], x as u16, "pixel {x}");
+        for (x, pixel) in ppu.framebuffer.iter().enumerate().take(SCREEN_WIDTH) {
+            assert_eq!(*pixel, x as u16, "pixel {x}");
         }
     }
 }
