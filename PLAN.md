@@ -1,8 +1,9 @@
 # GBA Emulator in Rust — Build Plan
 
 **Working name:** Cinnabar GBA
-**Status:** v0.4 frontend polish implemented, including a playable browser/WASM
-arcade with audio, gamepad/touch input, saves, and shaders. See
+**Status:** v0.5 browser arcade and keyboard ergonomics implemented, including a
+full playable browser/WASM arcade with audio, gamepad/touch input, saves,
+shaders, and preset/per-key keyboard remapping. See
 [`README.md`](README.md) and [`ROADMAP.md`](ROADMAP.md) for the current feature
 set, validation results, and remaining work.
 **Goal:** a legally dumped GBA game boots, runs at full speed with audio, saves persist, and a debugger makes it pleasant to fix bugs.
@@ -447,11 +448,11 @@ A good debugger turns a 3-hour bug into a 10-minute bug. But only after you have
 
 ## Current status and next work
 
-v0.2 and v0.3 are implemented, and the v0.4 frontend polish adds gamepad
-support, shaders, config with keyboard presets, per-key remapping and volume,
-cubic audio resampling, a cover-aware ROM library scanner, and a full browser
-arcade with AudioWorklet sound, touch controls, IndexedDB saves, and WebGL
-shaders. The remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
+v0.2, v0.3, and v0.4 are implemented. v0.5 adds the full browser arcade with
+AudioWorklet sound, gamepad/touch controls, IndexedDB saves, and WebGL shaders;
+an ergonomic keyboard default with classic/numpad presets and per-key
+remapping; and commercial-game save, palette, and PPU compatibility polish. The
+remaining accuracy work is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 Run the validation and smoke suites:
 
