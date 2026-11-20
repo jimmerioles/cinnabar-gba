@@ -463,6 +463,9 @@ ppu, dma, timers, irq   hardware state
 
 ## Architecture
 
+For a guided tour of how the pieces fit together, see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ```text
 crates/
 ├── cinnabar-core/       headless emulator; no window, audio device, or filesystem
@@ -475,6 +478,7 @@ crates/
 │   ├── bios.rs          HLE SWI implementations
 │   └── system.rs        CPU + bus + frame loop
 ├── cinnabar-frontend/   winit + softbuffer + cpal + clap binary
+├── cinnabar-wasm/       wasm-bindgen bridge for the browser arcade
 └── cinnabar-testrom/    hand-written demo ROMs and their assembly
 ```
 
