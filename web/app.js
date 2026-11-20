@@ -476,7 +476,7 @@ class Arcade {
         : this.current.name;
     this.el.nowPlaying.textContent = title;
     this.el.nowPlaying.title = title;
-    document.title = `${title} — Cinnabar Arcade`;
+    document.title = `${title}: Cinnabar Arcade`;
     this.el.status.textContent = "Running";
   }
 
@@ -579,7 +579,7 @@ class Arcade {
     } else if (this.saveStored) {
       this.el.saveStatus.textContent = "Saved to this browser";
     } else {
-      this.el.saveStatus.textContent = "Ready — no saved data yet";
+      this.el.saveStatus.textContent = "Ready. No saved data yet";
     }
   }
 
@@ -1260,7 +1260,7 @@ class Arcade {
       : "off";
     this.el.hudUnderruns.textContent = this.audio.active
       ? `${this.audio.stats.underruns} (${this.audio.stats.overruns} over)`
-      : "—";
+      : "n/a";
     this.el.hudRenderer.textContent =
       this.renderer.kind === "webgl2" ? "WebGL2" : "Canvas 2D";
     this.el.hudGamepad.textContent = this.gamepadName || "none";

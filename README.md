@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/banner.png" alt="Cinnabar GBA — a fast, clean-room Game Boy Advance emulator written in Rust" width="100%">
+  <img src="docs/brand/banner.png" alt="Cinnabar GBA: a fast, clean-room Game Boy Advance emulator written in Rust" width="100%">
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 > **Why “Cinnabar”?** The name comes from cinnabar, the red mineral
 > historically ground into vermilion pigment. Cinnabar Island from Pokémon Red
-> and Blue — and its GBA remakes FireRed and LeafGreen — is a deliberate nod,
+> and Blue (and its GBA remakes FireRed and LeafGreen) is a deliberate nod,
 > not an official association.
 
 Cinnabar GBA pairs a headless, deterministic emulator core with a small native
@@ -112,7 +112,7 @@ make serve
 
 Open `http://localhost:8000`. A built-in cartridge boots immediately, so no ROM
 is needed; click the sound pill once to unlock audio. Load a legally dumped
-`.gba` file to play your own game. The page runs entirely locally — ROMs are
+`.gba` file to play your own game. The page runs entirely locally: ROMs are
 never uploaded.
 
 The deployed arcade lives at
@@ -152,7 +152,7 @@ The default keyboard layout is a two-hand home-row split:
 
 The left hand stays on `E`/`S`/`D`/`F` with `A` as the left shoulder; the right
 hand stays on `J`/`K` with `L` as the right shoulder. The key labels and GBA
-labels do not line up (`A` is L, `L` is R)—that is intentional: the outer
+labels do not line up (`A` is L, `L` is R). That is intentional: the outer
 home-row keys become the shoulders.
 
 This is the `ergonomic` preset. The config can switch to `classic` (arrow keys,

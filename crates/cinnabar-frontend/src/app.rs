@@ -152,15 +152,20 @@ impl App {
 
     fn update_window_title(&self) {
         let mut title = self.config.title.clone();
+        let mut statuses: Vec<String> = Vec::new();
         if self.paused {
-            title.push_str(" — paused");
+            statuses.push("paused".to_string());
         }
         if self.fast_forward {
-            title.push_str(" — fast-forward");
+            statuses.push("fast-forward".to_string());
         }
         if self.config.shader != Shader::default() {
-            title.push_str(" — ");
-            title.push_str(&self.config.shader.label());
+            statuses.push(self.config.shader.label());
+        }
+        if !statuses.is_empty() {
+            title.push_str(" (");
+            title.push_str(&statuses.join(", "));
+            title.push(')');
         }
         if let Some(window) = &self.window {
             window.set_title(&title);

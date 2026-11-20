@@ -4,7 +4,7 @@ Cinnabar's core is validated against the open-source `gba-tests` CPU, memory,
 and save suites. The next work is about compatibility depth, developer tools,
 and the parts of the GBA that only show up when you run real games.
 
-## v0.2 — Debugger and save states
+## v0.2: Debugger and save states
 
 - [x] Register/CPSR viewer with ARM and Thumb disassembly.
 - [x] Breakpoints, step, step-frame, and frame stepping.
@@ -20,7 +20,7 @@ v0.4 desktop frontend polish.
 **Why first:** a good debugger is the force multiplier for every compatibility
 bug after this point.
 
-## v0.3 — Compatibility depth
+## v0.3: Compatibility depth
 
 - [x] EEPROM saves (512 B and 8 KB, bit-banged protocol, runtime size detection).
 - [x] Flash command edge cases (ID mode, bank switching, sector erase) and
@@ -38,7 +38,7 @@ v0.3 is a compatibility-depth pass, not a claim of cycle accuracy. Dot-level
 PPU effects, exact PWM output, and a commercial-library soak remain documented
 follow-ups.
 
-## v0.4 — Desktop frontend polish
+## v0.4: Desktop frontend polish
 
 - [x] Gamepad support (gilrs; D-pad/left stick and shoulders).
 - [x] ROM library scanner with cover discovery and save management.
@@ -51,7 +51,7 @@ follow-ups.
 
 v0.4 desktop polish and the experimental browser preview landed in v0.4.0.
 
-## v0.5 — Browser arcade and keyboard ergonomics
+## v0.5: Browser arcade and keyboard ergonomics
 
 - [x] Full browser arcade: AudioWorklet sound, gamepad and touch controls,
   IndexedDB saves, WebGL LCD/CRT shaders, six built-in demos, and a GitHub
@@ -65,7 +65,7 @@ v0.4 desktop polish and the experimental browser preview landed in v0.4.0.
 
 v0.5 ships the browser arcade and makes keyboard play a first-class path.
 
-## v0.6 — The moonshots
+## v0.6: The moonshots
 
 - Link cable / multiplayer.
 - Netplay.

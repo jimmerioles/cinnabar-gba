@@ -174,7 +174,7 @@ pub fn window_title(cart: &Cartridge, rom_path: Option<&Path>) -> String {
     } else {
         cart.title.clone()
     };
-    format!("Cinnabar GBA — {title}")
+    format!("Cinnabar GBA: {title}")
 }
 
 fn display_or_unknown(value: &str) -> &str {
@@ -268,7 +268,7 @@ mod tests {
         cart.title = "POKEMON".to_string();
         assert_eq!(
             window_title(&cart, Some(Path::new("/tmp/game.gba"))),
-            "Cinnabar GBA — POKEMON"
+            "Cinnabar GBA: POKEMON"
         );
     }
 
@@ -277,7 +277,7 @@ mod tests {
         let cart = Cartridge::new(vec![0; 0xC0]);
         assert_eq!(
             window_title(&cart, Some(Path::new("/tmp/my-game.gba"))),
-            "Cinnabar GBA — my-game.gba"
+            "Cinnabar GBA: my-game.gba"
         );
     }
 }

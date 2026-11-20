@@ -1,4 +1,4 @@
-# GBA Emulator in Rust — Build Plan
+# GBA Emulator in Rust: Build Plan
 
 **Working name:** Cinnabar GBA
 **Status:** v0.5 browser arcade and keyboard ergonomics implemented, including a
@@ -99,7 +99,7 @@ Target: 280,896 CPU cycles per frame at 16.78 MHz ≈ 59.7275 Hz.
 
 ## Milestones
 
-### M0 — Warm-up: CHIP-8 (optional, one weekend)
+### M0: Warm-up with CHIP-8 (optional, one weekend)
 
 If you have never written an emulator, do this first. It is the same shape at 1/100th the size: fetch, decode, execute, framebuffer, input, timers.
 
@@ -111,7 +111,7 @@ If you have never written an emulator, do this first. It is the same shape at 1/
 
 ---
 
-### M1 — Skeleton and frontend (2–4 evenings)
+### M1: Skeleton and frontend (2–4 evenings)
 
 - Workspace with `gba-core` and `gba-frontend`.
 - 240×160 `u16` framebuffer, scaled 4x in a window.
@@ -124,7 +124,7 @@ If you have never written an emulator, do this first. It is the same shape at 1/
 
 ---
 
-### M2 — ARM7TDMI CPU (2–3 weeks)
+### M2: ARM7TDMI CPU (2–3 weeks)
 
 This is the heart of the project. Do it before the PPU.
 
@@ -143,7 +143,7 @@ This is the heart of the project. Do it before the PPU.
 
 ---
 
-### M3 — System, bus, cartridge, BIOS HLE (2–3 weeks)
+### M3: System, bus, cartridge, BIOS HLE (2–3 weeks)
 
 - Full memory map: BIOS, EWRAM, IWRAM, I/O, palette, VRAM, OAM, ROM, SRAM.
 - Cartridge header parsing and ROM mapping at `0x08000000`.
@@ -163,16 +163,16 @@ This is the heart of the project. Do it before the PPU.
 
 ---
 
-### M4 — PPU (3–4 weeks)
+### M4: PPU (3–4 weeks)
 
 Render in this order. Each step is visible.
 
-1. **Mode 3** — 240×160 direct-color bitmap. Easiest path to a real image.
-2. **Mode 4** — 8-bit indexed bitmap with palette.
-3. **Modes 0–2** — tiled backgrounds, text and affine.
-4. **Sprites** — OAM parsing, 1D/2D mapping, priority, flipping, affine.
-5. **Effects** — windows, blending (alpha/brightness/darkness), mosaic.
-6. **Mode 5** — small bitmap mode.
+1. **Mode 3:** 240×160 direct-color bitmap. Easiest path to a real image.
+2. **Mode 4:** 8-bit indexed bitmap with palette.
+3. **Modes 0–2:** tiled backgrounds, text and affine.
+4. **Sprites:** OAM parsing, 1D/2D mapping, priority, flipping, affine.
+5. **Effects:** windows, blending (alpha/brightness/darkness), mosaic.
+6. **Mode 5:** small bitmap mode.
 
 Start with a scanline renderer, not a dot-level renderer. Add dot timing only if a game demands it.
 
@@ -180,7 +180,7 @@ Start with a scanline renderer, not a dot-level renderer. Add dot timing only if
 
 ---
 
-### M5 — First game, input, saves (1–2 weeks)
+### M5: First game, input, saves (1–2 weeks)
 
 - Boot a legally dumped commercial ROM you own.
 - Fix the CPU/PPU bugs it exposes, one at a time.
@@ -194,7 +194,7 @@ This milestone is the emotional payoff. Record a video of it.
 
 ---
 
-### M6 — Audio (1–2 weeks)
+### M6: Audio (1–2 weeks)
 
 - Four GB-style channels: two square, wave, noise.
 - Two GBA DMA sound channels (A/B), 8-bit and 16-bit.
@@ -208,7 +208,7 @@ This milestone is the emotional payoff. Record a video of it.
 
 ---
 
-### M7 — Accuracy, debugger, polish (2–4 weeks)
+### M7: Accuracy, debugger, polish (2–4 weeks)
 
 - Run `mgba-emu/suite` and `jsmolka/gba-tests`; fix failures by category.
 - Debugger:
@@ -231,7 +231,7 @@ This milestone is the emotional payoff. Record a video of it.
 
 Each commit should build, test, and be understandable on its own.
 
-### Commit 1 — `chore: scaffold workspace and framebuffer window`
+### Commit 1: `chore: scaffold workspace and framebuffer window`
 
 - Create the workspace and both crates.
 - Add `winit`, `pixels`, `clap`, `anyhow`, `thiserror`.
@@ -242,7 +242,7 @@ Each commit should build, test, and be understandable on its own.
 
 **Done when:** `cargo run` shows the bars at a stable frame rate, and `cargo test` passes.
 
-### Commit 2 — `feat(core): bus, memory map, and cartridge loader`
+### Commit 2: `feat(core): bus, memory map, and cartridge loader`
 
 - `Bus` with region dispatch and read/write helpers.
 - `Cartridge::from_rom(&[u8])`.
@@ -253,7 +253,7 @@ Each commit should build, test, and be understandable on its own.
 
 **Done when:** `cargo run -- --info rom.gba` prints sane metadata, and the header tests pass.
 
-### Commit 3 — `feat(cpu): ARM register file and data-processing instructions`
+### Commit 3: `feat(cpu): ARM register file and data-processing instructions`
 
 - `Cpu` state: 16 registers, CPSR, current mode.
 - ARM fetch/decode for data-processing instructions.
@@ -331,26 +331,26 @@ If doing the DMG side quest: 4.194304 MHz, 160×144, 4 shades, 70,224 cycles/fra
 
 **Documentation**
 
-- GBATEK — the GBA hardware bible: <https://problemkaputt.de/gbatek.htm>
-- TONC — GBA programming, graphics, and hardware: <https://coranac.com/tonc/text/toc.htm>
-- Pan Docs — original Game Boy reference: <https://gbdev.io/pandocs/>
+- GBATEK, the GBA hardware bible: <https://problemkaputt.de/gbatek.htm>
+- TONC, GBA programming, graphics, and hardware: <https://coranac.com/tonc/text/toc.htm>
+- Pan Docs, original Game Boy reference: <https://gbdev.io/pandocs/>
 - ARM7TDMI datasheet (ARM DDI 0210)
-- gbadev forum and Discord — search before you suffer
+- gbadev forum and Discord: search before you suffer
 
 **Test ROMs**
 
-- `mgba-emu/suite` — <https://github.com/mgba-emu/suite>
-- `jsmolka/gba-tests` — <https://github.com/jsmolka/gba-tests>
-- `destoer/armwrestler` — <https://github.com/destoer/armwrestler>
-- `DenSinH/FuzzARM` — <https://github.com/DenSinH/FuzzARM>
-- AGS Aging Cartridge — hardware stress tests
+- `mgba-emu/suite`: <https://github.com/mgba-emu/suite>
+- `jsmolka/gba-tests`: <https://github.com/jsmolka/gba-tests>
+- `destoer/armwrestler`: <https://github.com/destoer/armwrestler>
+- `DenSinH/FuzzARM`: <https://github.com/DenSinH/FuzzARM>
+- AGS Aging Cartridge, hardware stress tests
 
 **Reference emulators**
 
-- mGBA (C) — the compatibility gold standard
-- NanoBoyAdvance (Rust) — excellent reference for GBA accuracy
-- SkyEmu (Rust) — useful for debugging workflows
-- VBA-M — old but readable
+- mGBA (C), the compatibility gold standard
+- NanoBoyAdvance (Rust), excellent reference for GBA accuracy
+- SkyEmu (Rust), useful for debugging workflows
+- VBA-M: old but readable
 
 Read for understanding, not for copy-paste. Keep your implementation yours.
 
