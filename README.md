@@ -62,10 +62,7 @@ HLE.
 https://github.com/user-attachments/assets/7c87c8c8-acd5-4514-9bdf-2a29a3b00e15
 
 The full 3:13 explainer, in 720p. If the player starts muted, use the volume
-control to hear the narration. The [1080p master](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
-is on the release page, with the [companion script](https://github.com/jimmerioles/cinnabar-gba/releases/download/explainer-v1/Cinnabar-GBA-explained-script.md).
-The [source](docs/explainer/) and [production notes](docs/explainer/README.md)
-are in the repo.
+control to hear the narration.
 
 ## Quick start
 
