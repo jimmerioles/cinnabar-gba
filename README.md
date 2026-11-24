@@ -59,12 +59,11 @@ HLE.
 
 ## Video
 
-https://github.com/user-attachments/assets/c73e08e5-38b8-46d3-b82e-aecab8b3455e
+https://github.com/user-attachments/assets/7c87c8c8-acd5-4514-9bdf-2a29a3b00e15
 
-A 23-second trailer for the 3:13 explainer: one 240 × 160 frame, the machine
-behind it, and the proof. If the player starts muted, use the volume control to
-hear the narration. [Watch the full film](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
-with sound, or read the [companion script](https://github.com/jimmerioles/cinnabar-gba/releases/download/explainer-v1/Cinnabar-GBA-explained-script.md).
+The full 3:13 explainer, in 720p. If the player starts muted, use the volume
+control to hear the narration. The [1080p master](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
+is on the release page, with the [companion script](https://github.com/jimmerioles/cinnabar-gba/releases/download/explainer-v1/Cinnabar-GBA-explained-script.md).
 The [source](docs/explainer/) and [production notes](docs/explainer/README.md)
 are in the repo.
 

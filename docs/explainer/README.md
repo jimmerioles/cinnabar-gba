@@ -17,10 +17,25 @@ from the headless core. It builds the machine around that frame, then returns to
 it at the end.
 
 The deliverable is `build/film.mp4`, with `build/poster.jpg` as the thumbnail and
-`build/script.md` as the companion script. `preview.mp4` is the 23-second trailer
-embedded in the project README. The README player uses a GitHub user-attachment
-URL because README video tags do not accept repo-hosted MP4s. The MP4 is a
-release asset, not a Git commit. `poster.jpg` and every source file are committed.
+`build/script.md` as the companion script. The MP4 is a release asset, not a Git
+commit. `poster.jpg` and every source file are committed.
+
+The project README plays the full film inline. GitHub READMEs only accept video
+from a user attachment, and the attachment limit is 10 MB, so the player uses a
+720p encode. Recreate it from the master with:
+
+```bash
+ffmpeg -i build/film.mp4 \
+  -vf "scale=1280:720:flags=lanczos" \
+  -c:v libx264 -preset slow -crf 24 -profile:v high -level 4.0 \
+  -pix_fmt yuv420p -c:a aac -b:a 112k -ar 48000 -ac 2 \
+  -movflags +faststart Cinnabar-GBA-explained-720.mp4
+```
+
+Upload that file through the GitHub README editor and put the bare
+`https://github.com/user-attachments/assets/...` URL on its own line. Do not wrap
+it in a `<video>` tag: GitHub only signs the bare URL, and the unsigned tag will
+not play.
 
 ## Source
 
@@ -30,7 +45,6 @@ release asset, not a Git commit. `poster.jpg` and every source file are committe
 | `scenes.js` | the argument, drawn with the kit's canvas primitives |
 | `assets.js` | names for the real captures |
 | `assets/` | Cinnabar logo, Celeste Classic, browser arcade |
-| `preview.mp4` | 23 s trailer used by the README player |
 | `config.json` | title, accent, chrome, voice, bed, verify frame |
 | `music.m4a`, `music.json` | the house bed and its provenance |
 | `golden/frame.png` | the frame `verify` compares |
