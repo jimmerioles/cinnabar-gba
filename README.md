@@ -60,15 +60,14 @@ HLE.
 ## Video
 
 <p align="center">
-  <a href="https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1">
-    <img src="docs/explainer/poster.jpg" alt="Cinnabar GBA, explained: a 3:13 video" width="100%">
-  </a>
+  <video src="https://github.com/user-attachments/assets/c73e08e5-38b8-46d3-b82e-aecab8b3455e" controls muted loop playsinline></video>
 </p>
 
-A 3:13 explainer film: one 240 × 160 frame, the machine behind it, and the
-proof. The [release page](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
-has the MP4, poster, and companion script. The [source](docs/explainer/) and
-[production notes](docs/explainer/README.md) are in the repo.
+A 23-second trailer for the 3:13 explainer: one 240 × 160 frame, the machine
+behind it, and the proof. [Watch the full film](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
+with sound, or read the [companion script](https://github.com/jimmerioles/cinnabar-gba/releases/download/explainer-v1/Cinnabar-GBA-explained-script.md).
+The [source](docs/explainer/) and [production notes](docs/explainer/README.md)
+are in the repo.
 
 ## Quick start
 

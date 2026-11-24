@@ -18,8 +18,9 @@ it at the end.
 
 The deliverable is `build/film.mp4`, with `build/poster.jpg` as the thumbnail and
 `build/script.md` as the companion script. `preview.mp4` is the 23-second trailer
-embedded in the project README. The MP4 is a release asset, not a Git
-commit. `poster.jpg` and every source file are committed.
+embedded in the project README. The README player uses a GitHub user-attachment
+URL because README video tags do not accept repo-hosted MP4s. The MP4 is a
+release asset, not a Git commit. `poster.jpg` and every source file are committed.
 
 ## Source
 
