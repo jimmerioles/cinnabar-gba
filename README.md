@@ -59,12 +59,11 @@ HLE.
 
 ## Video
 
-<p align="center">
-  <video src="https://github.com/user-attachments/assets/c73e08e5-38b8-46d3-b82e-aecab8b3455e" controls muted loop playsinline></video>
-</p>
+https://github.com/user-attachments/assets/c73e08e5-38b8-46d3-b82e-aecab8b3455e
 
 A 23-second trailer for the 3:13 explainer: one 240 × 160 frame, the machine
-behind it, and the proof. [Watch the full film](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
+behind it, and the proof. If the player starts muted, use the volume control to
+hear the narration. [Watch the full film](https://github.com/jimmerioles/cinnabar-gba/releases/tag/explainer-v1)
 with sound, or read the [companion script](https://github.com/jimmerioles/cinnabar-gba/releases/download/explainer-v1/Cinnabar-GBA-explained-script.md).
 The [source](docs/explainer/) and [production notes](docs/explainer/README.md)
 are in the repo.
