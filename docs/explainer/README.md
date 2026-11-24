@@ -17,7 +17,8 @@ from the headless core. It builds the machine around that frame, then returns to
 it at the end.
 
 The deliverable is `build/film.mp4`, with `build/poster.jpg` as the thumbnail and
-`build/script.md` as the companion script. The MP4 is a release asset, not a Git
+`build/script.md` as the companion script. `preview.mp4` is the 23-second trailer
+embedded in the project README. The MP4 is a release asset, not a Git
 commit. `poster.jpg` and every source file are committed.
 
 ## Source
@@ -28,6 +29,7 @@ commit. `poster.jpg` and every source file are committed.
 | `scenes.js` | the argument, drawn with the kit's canvas primitives |
 | `assets.js` | names for the real captures |
 | `assets/` | Cinnabar logo, Celeste Classic, browser arcade |
+| `preview.mp4` | 23 s trailer used by the README player |
 | `config.json` | title, accent, chrome, voice, bed, verify frame |
 | `music.m4a`, `music.json` | the house bed and its provenance |
 | `golden/frame.png` | the frame `verify` compares |
