@@ -1,0 +1,30 @@
+{
+  "kit": "1.1.0",
+  "title": "Cinnabar GBA, explained",
+  "slug": "cinnabar-gba-explained",
+  "targetSeconds": 195,
+  "theme": {
+    "accent": "#ff3b2f",
+    "chrome": {
+      "left": "CINNABAR GBA",
+      "center": "A CLEAN-ROOM EMULATOR IN RUST",
+      "right": "v0.5.0"
+    }
+  },
+  "voice": {
+    "engine": "kokoro",
+    "name": "af_heart",
+    "fallback": "af_bella"
+  },
+  "mix": {
+    "bed": "music.m4a"
+  },
+  "capture": {
+    "url": "https://jimmerioles.github.io/cinnabar-gba/",
+    "selector": "body"
+  },
+  "verify": {
+    "frameAt": 16.5,
+    "golden": "golden/frame.png"
+  }
+}

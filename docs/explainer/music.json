@@ -1,0 +1,13 @@
+{
+  "title": "house / midnight tech",
+  "license": "MIT, Copyright (c) 2026 Vincent Schmalbach",
+  "style": "tech",
+  "bpm": 100,
+  "key": "A major",
+  "seed": 1,
+  "duration": 201.8,
+  "level": "-24.9 LUFS",
+  "truePeak": "-4.2 dBFS",
+  "source": "House score, extended to the root film's length",
+  "render": "local score renderer, then 45 Hz highpass, 2.5 dB scoop at 2.5 kHz, loudnorm, AAC 192k"
+}

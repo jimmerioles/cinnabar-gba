@@ -1,0 +1,114 @@
+{
+  "title": "Cinnabar GBA, explained",
+  "segments": [
+    {
+      "id": "frame",
+      "title": "One frame",
+      "sentences": [
+        "This is one frame from a Game Boy Advance.",
+        "240 by 160, replaced sixty times a second.",
+        "Every sprite and sound comes from a machine in your hand.",
+        "Cinnabar rebuilds it in Rust, with no Nintendo firmware."
+      ],
+      "notes": "Open on the Cinnabar logo cartridge, captured from the headless core. Draw the GBA shell around the frame, mark 240x160, then shrink the frame into the title card. The frame is the object the film returns to."
+    },
+    {
+      "id": "machine",
+      "title": "The machine",
+      "sentences": [
+        "Start with the shape of the thing.",
+        "A Game Boy Advance is chips sharing one bus: a processor, a picture unit, a sound unit, a cartridge.",
+        "The processor is an ARM7TDMI at 16.78 megahertz, with 280,896 cycles each frame."
+      ],
+      "notes": "Block diagram: CPU at the centre, bus as a spine, PPU/APU/DMA/timers off it. Light each chip on its clause. Land on the cycle budget."
+    },
+    {
+      "id": "bus",
+      "title": "The switchboard",
+      "sentences": [
+        "The bus makes the rest click.",
+        "The processor asks for an address, and the bus reads the top byte.",
+        "Zero two is RAM. Zero four is hardware. Zero eight is the cartridge.",
+        "Every access goes through it."
+      ],
+      "notes": "Address map from 0x02000000 to 0x0E000000. Highlight the top byte, then walk 0x02, 0x04 and 0x08 as the narration names RAM, hardware and cartridge."
+    },
+    {
+      "id": "cpu",
+      "title": "Two dialects",
+      "sentences": [
+        "The processor speaks two languages.",
+        "ARM is 32 bits. Thumb is 16.",
+        "Decode is a table of bit fields.",
+        "The program counter reads eight bytes ahead in ARM, four in Thumb. The pipeline is part of the instruction set."
+      ],
+      "notes": "One real ADD instruction, its 32 bits split into cond/opcode/Rn/Rd/operand2. Then the same logic as a 16-bit Thumb word. PC offset diagram at the end."
+    },
+    {
+      "id": "ppu",
+      "title": "One line at a time",
+      "sentences": [
+        "The picture unit draws one scanline at a time.",
+        "Each line asks four backgrounds and 128 sprites for a color.",
+        "Then it blends: alpha, brightness, a window, a mosaic.",
+        "A hundred and sixty lines, sixty times a second."
+      ],
+      "notes": "The Cinnabar logo frame revealed one scanline at a time. Then the layer stack and the blend equation. End on the complete frame and the 160/68 scanline budget."
+    },
+    {
+      "id": "apu",
+      "title": "Four channels",
+      "sentences": [
+        "Sound is four channels: two squares, a wave, and noise.",
+        "Two DMA channels stream samples on top.",
+        "The mixer turns it into 48 kilohertz stereo.",
+        "Envelopes shape the note. Sweep bends the pitch."
+      ],
+      "notes": "Four channel strips with real waveform shapes, two DMA lanes, a six-fader mixer, then an ADSR panel and a sweep arrow."
+    },
+    {
+      "id": "bios",
+      "title": "The firmware that isn't",
+      "sentences": [
+        "A real Game Boy Advance boots Nintendo's BIOS first.",
+        "Cinnabar skips it.",
+        "Games call BIOS functions, and Cinnabar answers in Rust: decompress, fill, divide, wait.",
+        "No copyrighted firmware ships, and cartridges still boot."
+      ],
+      "notes": "Boot path that normally enters the BIOS, then a bypass. SWI dispatch table with the real call names; the call card changes with the highlighted row. End on the repo shipping no BIOS file."
+    },
+    {
+      "id": "proof",
+      "title": "Proof",
+      "sentences": [
+        "How do you know it is right? Ask questions with known answers.",
+        "The gba-tests suite covers ARM, Thumb, memory, SRAM, and Flash.",
+        "Every selected suite passes.",
+        "Headless, Celeste runs at 430 frames per second. It needs sixty."
+      ],
+      "notes": "PASS lines from the real validation run, then the 429.7 fps bench and a real Celeste frame. Finish on 7.2x headroom."
+    },
+    {
+      "id": "browser",
+      "title": "The same core, in a tab",
+      "sentences": [
+        "The core owns no window, audio device, or filesystem.",
+        "So the same code compiles to WebAssembly and runs in a tab.",
+        "The arcade boots six cartridges, with sound and saves.",
+        "One core, two frontends."
+      ],
+      "notes": "Core to native and browser frontends. Then the real arcade screenshot with AudioWorklet, IndexedDB, WebGL2 and touch labels."
+    },
+    {
+      "id": "close",
+      "title": "One frame, again",
+      "sentences": [
+        "Come back to the frame.",
+        "Every pixel is the hardware's decision, written again in Rust.",
+        "No game ROMs. No BIOS. No shortcuts.",
+        "A game you love, running because of code you wrote."
+      ],
+      "notes": "Return to the Cinnabar logo frame. Ring one pixel, show the three claims, then the last line alone on the field."
+    }
+  ]
+}

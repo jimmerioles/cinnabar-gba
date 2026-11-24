@@ -6,3 +6,6 @@
 /screenshots/
 .DS_Store
 /web/pkg
+# explainer build output and narration cache
+docs/explainer/build/
+.cache/explainer/
