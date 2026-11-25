@@ -20,14 +20,29 @@ it at the end.
 `build/script.md` is the companion script. The MP4 is a release asset, not a Git
 commit. `poster.jpg` and every source file are committed.
 
+## Poster
+
+The poster is a 16:9 crop of the browser arcade capture,
+`docs/web-arcade.png`. It keeps the arcade cabinet, demo screen, and controls,
+and it is also the video's first frame. Rebuild it from the project root:
+
+```bash
+ffmpeg -y -v error -i docs/web-arcade.png \
+  -vf "crop=1440:810:0:540,scale=1920:1080:flags=lanczos" \
+  -frames:v 1 -q:v 2 docs/explainer/poster.jpg
+```
+
+Copy it to `docs/explainer/build/poster.jpg` if the explainer kit expects the
+build copy.
+
 ## Publish master
 
 GitHub renders a bare user-attachment URL as a video player. It strips `poster`,
 `autoplay`, `loop`, and `style` from hand-written `<video>` tags, so the opening
-frame has to be the poster. The publish master holds `poster.jpg` for 2.5 s,
-crossfades over 0.5 s, then continues the film from 2.5 s. Audio is copied
-untouched, so the duration, narration, music, and chapter timestamps do not
-change.
+frame has to be the poster. The publish master holds the browser arcade still
+for 2.5 s, crossfades over 0.5 s, then continues the film from 2.5 s. Audio is
+copied untouched, so the duration, narration, music, and chapter timestamps do
+not change.
 
 Build the publish master from the project root:
 
@@ -74,7 +89,7 @@ deleted, check that the asset still resolves with a 206 response and a
 | `config.json` | title, accent, chrome, voice, bed, verify frame |
 | `music.m4a`, `music.json` | the house bed and its provenance |
 | `golden/frame.png` | the frame `verify` compares |
-| `poster.jpg` | committed thumbnail and first frame |
+| `poster.jpg` | 16:9 browser arcade still, thumbnail and first frame |
 
 ## Rebuild
 
