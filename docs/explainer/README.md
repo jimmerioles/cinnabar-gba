@@ -1,7 +1,7 @@
 # Cinnabar GBA, explained
 
 A 3:13 house-style explainer film about the emulator, made with the
-[`explainer-kit`](../../../explainer-kit) pipeline.
+[`explainer-kit`](https://github.com/jimmerioles/explainer-kit) pipeline.
 
 | | |
 |---|---|
@@ -16,26 +16,52 @@ The film follows one 240 × 160 frame: the Cinnabar logo cartridge, captured
 from the headless core. It builds the machine around that frame, then returns to
 it at the end.
 
-The deliverable is `build/film.mp4`, with `build/poster.jpg` as the thumbnail and
-`build/script.md` as the companion script. The MP4 is a release asset, not a Git
+`build/film.mp4` is the edit master, `build/poster.jpg` is the thumbnail, and
+`build/script.md` is the companion script. The MP4 is a release asset, not a Git
 commit. `poster.jpg` and every source file are committed.
 
-The project README plays the full film inline. GitHub READMEs only accept video
-from a user attachment, and the attachment limit is 10 MB, so the player uses a
-720p encode. Recreate it from the master with:
+## Publish master
+
+GitHub renders a bare user-attachment URL as a video player. It strips `poster`,
+`autoplay`, `loop`, and `style` from hand-written `<video>` tags, so the opening
+frame has to be the poster. The publish master holds `poster.jpg` for 2.5 s,
+crossfades over 0.5 s, then continues the film from 2.5 s. Audio is copied
+untouched, so the duration, narration, music, and chapter timestamps do not
+change.
+
+Build the publish master from the project root:
 
 ```bash
-ffmpeg -i build/film.mp4 \
-  -vf "scale=1280:720:flags=lanczos" \
-  -c:v libx264 -preset slow -crf 24 -profile:v high -level 4.0 \
-  -pix_fmt yuv420p -c:a aac -b:a 112k -ar 48000 -ac 2 \
-  -movflags +faststart Cinnabar-GBA-explained-720.mp4
+POSTER=docs/explainer/poster.jpg
+SOURCE=docs/explainer/build/film.mp4
+OUT=docs/explainer/build/film-poster.mp4
+FPS=30
+OFFSET=2.5
+XFADE=0.5
+POSTER_DURATION=$(awk -v a="$OFFSET" -v b="$XFADE" 'BEGIN { print a+b }')
+
+ffmpeg -y -v error \
+  -loop 1 -framerate "$FPS" -t "$POSTER_DURATION" -i "$POSTER" \
+  -i "$SOURCE" \
+  -filter_complex "\
+[0:v]scale=1920:1080:flags=lanczos,fps=$FPS,format=yuv420p,setsar=1,settb=AVTB,trim=duration=$POSTER_DURATION,setpts=PTS-STARTPTS[poster];\
+[1:v]trim=start=$OFFSET,setpts=PTS-STARTPTS,fps=$FPS,format=yuv420p,setsar=1,settb=AVTB[film];\
+[poster][film]xfade=transition=fade:duration=$XFADE:offset=$OFFSET[v]" \
+  -map "[v]" -map 1:a:0 -map_metadata 1 -map_chapters 1 -dn \
+  -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p \
+  -profile:v high -level 4.1 \
+  -g $((FPS*2)) -keyint_min $((FPS*2)) -sc_threshold 0 \
+  -c:a copy -movflags +faststart \
+  "$OUT"
 ```
 
-Upload that file through the GitHub README editor and put the bare
-`https://github.com/user-attachments/assets/...` URL on its own line. Do not wrap
-it in a `<video>` tag: GitHub only signs the bare URL, and the unsigned tag will
-not play.
+Upload the 1080p publish master with `gh issue create --attach` and put the bare
+`https://github.com/user-attachments/assets/...` URL on its own line in the
+README. The CLI accepts the roughly 38 MB file even though the web editor caps
+video uploads at 10 MB. Do not wrap the URL in a link or a `<video>` tag, and do
+not downscale the film to fit the web editor. After the temporary issue is
+deleted, check that the asset still resolves with a 206 response and a
+`video/mp4` content type.
 
 ## Source
 
@@ -48,7 +74,7 @@ not play.
 | `config.json` | title, accent, chrome, voice, bed, verify frame |
 | `music.m4a`, `music.json` | the house bed and its provenance |
 | `golden/frame.png` | the frame `verify` compares |
-| `poster.jpg` | the committed thumbnail |
+| `poster.jpg` | committed thumbnail and first frame |
 
 ## Rebuild
 
