@@ -99,8 +99,6 @@ Cinnabar models the GBA as a CPU, a bus, and a set of peripherals. `Cpu::step()`
 
 `cargo test --workspace` covers CPU decoding, flags, exceptions, PPU, APU, frontend conversions, saves, the CLI, and the demo cartridge integration test. `./tools/validate.sh` fetches and runs the open-source `gba-tests` CPU, memory, and save suites, plus PPU and Celeste smoke checks. CI runs both.
 
-[![CI](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml/badge.svg)](https://github.com/jimmerioles/cinnabar-gba/actions/workflows/ci.yml)
-
 ## Limits
 
 - BIOS calls are HLE, not a cycle-accurate BIOS. The `bios` test ROM is unsupported by design.
