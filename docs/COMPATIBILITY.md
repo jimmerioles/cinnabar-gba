@@ -18,7 +18,10 @@ homebrew ROM is present.
 | PPU modes 0-5 | `gba-tests/ppu`, built-in cartridges | passing |
 | Audio | APU unit tests, Celeste Classic | passing |
 | BIOS HLE | SWI unit/integration tests | passing |
-| Frontend | headless smoke, self-test | passing |
+| Save states | round-trip, corruption, deterministic replay | passing |
+| Disassembler | every Thumb halfword, random ARM words | passing |
+| Frontend | headless smoke, self-test, library, save persistence, debugger | passing |
+| WASM bindings | RGBA output, audio resampling, save and metadata glue | passing |
 | Browser arcade | WASM build, audio worklet, gamepad/touch, IndexedDB saves, WebGL shaders | passing (manual) |
 
 Run the suite with:

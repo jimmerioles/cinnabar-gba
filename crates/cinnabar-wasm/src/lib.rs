@@ -187,3 +187,129 @@ fn builtin_rom(name: &str) -> Option<Vec<u8>> {
 const fn expand5(value: u8) -> u8 {
     (value << 3) | (value >> 2)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sram_demo_rom() -> Vec<u8> {
+        let mut rom = cinnabar_testrom::demo_rom();
+        rom[0x200..0x206].copy_from_slice(b"SRAM_V");
+        rom
+    }
+
+    #[test]
+    fn builtin_names_cover_every_cartridge() {
+        assert_eq!(
+            Emulator::builtin_names(),
+            "logo,tiled,input,irq,halt,gradient"
+        );
+        for name in BUILTINS {
+            assert!(builtin_rom(name).is_some(), "missing builtin {name}");
+        }
+        assert!(builtin_rom("demo").is_some());
+        assert!(builtin_rom("missing").is_none());
+        assert!(Emulator::builtin("logo").is_ok());
+    }
+
+    #[test]
+    fn rgba_framebuffer_matches_the_core() {
+        let rom = cinnabar_testrom::demo_rom();
+        let mut emulator = Emulator::new(&rom);
+        for _ in 0..3 {
+            emulator.run_frame();
+        }
+
+        let mut system = System::new(Cartridge::new(rom));
+        let _ = system.run_frames(3);
+        assert_eq!(emulator.frame_count(), 3);
+
+        let rgba = emulator.framebuffer_rgba();
+        assert_eq!(rgba.len(), SCREEN_WIDTH * SCREEN_HEIGHT * 4);
+        for (index, &color) in system.framebuffer().iter().enumerate() {
+            let pixel = &rgba[index * 4..index * 4 + 4];
+            assert_eq!(pixel[0], expand5((color & 0x1F) as u8));
+            assert_eq!(pixel[1], expand5(((color >> 5) & 0x1F) as u8));
+            assert_eq!(pixel[2], expand5(((color >> 10) & 0x1F) as u8));
+            assert_eq!(pixel[3], 255);
+        }
+    }
+
+    #[test]
+    fn audio_drains_and_resamples() {
+        let mut emulator = Emulator::new(&cinnabar_testrom::logo_rom());
+        emulator.run_frame();
+        let native = emulator.take_audio();
+        assert!(!native.is_empty());
+        assert_eq!(native.len() % 2, 0);
+        assert!(emulator.take_audio().is_empty());
+        assert_eq!(emulator.output_sample_rate(), 48_000);
+        assert_eq!(emulator.source_sample_rate(), 48_000);
+
+        let mut resampled = Emulator::new(&cinnabar_testrom::logo_rom());
+        resampled.set_output_rate(24_000);
+        for _ in 0..4 {
+            resampled.run_frame();
+        }
+        let audio = resampled.take_audio();
+        assert!(!audio.is_empty());
+        assert_eq!(resampled.output_sample_rate(), 24_000);
+
+        let mut native = Emulator::new(&cinnabar_testrom::logo_rom());
+        for _ in 0..4 {
+            native.run_frame();
+        }
+        let native_audio = native.take_audio();
+        let ratio = audio.len() as f64 / native_audio.len() as f64;
+        assert!((0.45..=0.55).contains(&ratio), "rate ratio {ratio}");
+    }
+
+    #[test]
+    fn output_rate_is_clamped() {
+        let mut emulator = Emulator::new(&cinnabar_testrom::demo_rom());
+        emulator.set_output_rate(1);
+        assert_eq!(emulator.output_sample_rate(), 8_000);
+        emulator.set_output_rate(u32::MAX);
+        assert_eq!(emulator.output_sample_rate(), 192_000);
+    }
+
+    #[test]
+    fn save_bytes_round_trip_through_the_bindings() {
+        let mut emulator = Emulator::new(&sram_demo_rom());
+        assert_eq!(emulator.save_type(), "SRAM 32K");
+        assert_eq!(emulator.save_data().len(), 32 * 1024);
+        assert!(!emulator.save_dirty());
+
+        let mut save = vec![0xFFu8; 32 * 1024];
+        save[0] = 0xAB;
+        save[0x42] = 0xCD;
+        emulator.load_save(&save);
+        assert_eq!(emulator.save_data(), save);
+        assert!(!emulator.save_dirty());
+
+        emulator.mark_save_dirty();
+        assert!(emulator.save_dirty());
+        emulator.mark_save_clean();
+        assert!(!emulator.save_dirty());
+    }
+
+    #[test]
+    fn metadata_and_reset_are_exposed() {
+        let rom = cinnabar_testrom::demo_rom();
+        let mut emulator = Emulator::new(&rom);
+        assert_eq!(emulator.title(), "CINNABAR");
+        assert_eq!(emulator.game_code(), "CINB");
+        assert_eq!(emulator.rom_size() as usize, rom.len());
+        assert_eq!(emulator.frame_count(), 0);
+
+        emulator.run_frame();
+        assert_eq!(emulator.frame_count(), 1);
+        emulator.set_keys(0x0001);
+        emulator.reset();
+        assert_eq!(emulator.frame_count(), 0);
+        assert!(emulator.take_audio().is_empty());
+
+        let blank = Emulator::new(&[0u8; 0x100]);
+        assert_eq!(blank.title(), "Untitled cartridge");
+    }
+}

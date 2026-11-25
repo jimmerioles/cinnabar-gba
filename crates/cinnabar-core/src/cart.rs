@@ -188,4 +188,36 @@ mod tests {
         let cart = Cartridge::new(rom);
         assert_eq!(cart.save_type, SaveType::Eeprom8K);
     }
+
+    #[test]
+    fn every_short_rom_parses_without_panicking() {
+        for len in 0..=0x100 {
+            let cart = Cartridge::new(vec![0; len]);
+            assert_eq!(cart.size(), len);
+            assert!(!cart.header_ok);
+            assert!(cart.title.is_empty());
+            assert_eq!(cart.read32(ROM_BASE), 0);
+        }
+    }
+
+    #[test]
+    fn arbitrary_rom_bytes_do_not_panic() {
+        let mut rom = vec![0u8; 0x1000];
+        let mut state = 0x9E37_79B9u32;
+        for byte in &mut rom {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            *byte = state as u8;
+        }
+
+        let cart = Cartridge::new(rom);
+        assert_eq!(cart.size(), 0x1000);
+        for offset in [0, 1, 0xFFF, 0x1FF_FFFF] {
+            let address = ROM_BASE.wrapping_add(offset);
+            let _ = cart.read8(address);
+            let _ = cart.read16(address);
+            let _ = cart.read32(address);
+        }
+    }
 }

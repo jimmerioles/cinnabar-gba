@@ -323,4 +323,106 @@ mod tests {
             Err(SaveStateError::BadMagic)
         ));
     }
+
+    #[test]
+    fn save_state_rejects_an_unsupported_version() {
+        let mut system = demo();
+        let mut state = system.save_state().expect("encode state");
+        let next = SAVE_STATE_VERSION + 1;
+        state[4..6].copy_from_slice(&next.to_le_bytes());
+        assert!(matches!(
+            system.load_state(&state),
+            Err(SaveStateError::UnsupportedVersion(version)) if version == next
+        ));
+    }
+
+    #[test]
+    fn save_state_rejects_truncated_data() {
+        let mut system = demo();
+        let state = system.save_state().expect("encode state");
+        for cut in [0, 1, 2, 3, 4, 5, 8, state.len() / 2, state.len() - 1] {
+            assert!(
+                system.load_state(&state[..cut]).is_err(),
+                "a {cut}-byte state should not load"
+            );
+        }
+    }
+
+    #[test]
+    fn save_state_rejects_a_corrupt_length_prefix() {
+        let mut system = demo();
+        let mut state = system.save_state().expect("encode state");
+        // The title length follows the 4-byte magic, 2-byte version, and
+        // 8-byte ROM size. A corrupt length must fail to decode, not try to
+        // allocate the whole address space.
+        state[14..22].copy_from_slice(&u64::MAX.to_le_bytes());
+        assert!(system.load_state(&state).is_err());
+    }
+
+    #[test]
+    fn save_state_rejects_arbitrary_bytes() {
+        let mut system = demo();
+        assert!(system.load_state(&[]).is_err());
+        assert!(system.load_state(&[0xFF; 4096]).is_err());
+        assert!(system.load_state(b"not a cinnabar save state").is_err());
+    }
+
+    #[test]
+    fn save_state_restores_deterministic_execution() {
+        let mut system = System::new(Cartridge::new(cinnabar_testrom::logo_rom()));
+        for _ in 0..3 {
+            let _ = system.run_frame();
+        }
+        let state = system.save_state().expect("encode state");
+
+        let expected = capture(&mut system, 6);
+
+        system.load_state(&state).expect("decode state");
+        assert_eq!(
+            system.save_state().expect("re-encode state"),
+            state,
+            "loading a state must preserve every field"
+        );
+        let actual = capture(&mut system, 6);
+
+        for (expected, actual) in expected.frames.iter().zip(&actual.frames) {
+            assert_eq!(expected.framebuffer, actual.framebuffer);
+            assert_eq!(expected.audio, actual.audio);
+        }
+        assert_eq!(actual.state, expected.state);
+        assert!(
+            expected.frames.iter().any(|frame| !frame.audio.is_empty()),
+            "the logo cartridge should exercise the APU"
+        );
+    }
+
+    #[test]
+    fn save_state_restores_battery_save_media() {
+        let mut rom = cinnabar_testrom::demo_rom();
+        rom[0x200..0x206].copy_from_slice(b"SRAM_V");
+        let mut system = System::new(Cartridge::new(rom));
+        system.bus.save.data[0x10] = 0xAB;
+        system.mark_save_dirty();
+
+        let state = system.save_state().expect("encode state");
+
+        system.bus.save.data[0x10] = 0;
+        system.mark_save_clean();
+        system.load_state(&state).expect("decode state");
+
+        assert_eq!(system.save_bytes()[0x10], 0xAB);
+        assert!(system.save_dirty());
+    }
+
+    struct Capture {
+        frames: Vec<FrameOutput>,
+        state: Vec<u8>,
+    }
+
+    fn capture(system: &mut System, frames: u32) -> Capture {
+        Capture {
+            frames: (0..frames).map(|_| system.run_frame()).collect(),
+            state: system.save_state().expect("encode state"),
+        }
+    }
 }

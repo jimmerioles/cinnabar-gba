@@ -884,4 +884,26 @@ mod tests {
             "bl 0x08000006"
         );
     }
+
+    #[test]
+    fn every_thumb_halfword_disassembles() {
+        for halfword in 0..=u16::MAX {
+            let text = disassemble_thumb(halfword, 0x0800_0000);
+            assert!(!text.is_empty(), "thumb halfword {halfword:04X}");
+            assert!(matches!(thumb_instruction_len(halfword), 2 | 4));
+        }
+    }
+
+    #[test]
+    fn arbitrary_arm_words_disassemble() {
+        let mut word = 0x1234_5678u32;
+        for _ in 0..100_000 {
+            // xorshift32 gives a deterministic spread over the encoding space.
+            word ^= word << 13;
+            word ^= word >> 17;
+            word ^= word << 5;
+            let text = disassemble_arm(word, 0x0800_0000);
+            assert!(!text.is_empty(), "arm word {word:08X}");
+        }
+    }
 }
