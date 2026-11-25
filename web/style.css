@@ -1235,6 +1235,15 @@ input[type="range"] {
     gap: 0;
   }
 
+  .brand-name,
+  .nav-link {
+    white-space: nowrap;
+  }
+
+  .site-nav .nav-link:last-child {
+    display: none;
+  }
+
   .nav-link {
     padding: 6px 8px;
     font-size: 0.68rem;
@@ -1301,6 +1310,12 @@ input[type="range"] {
   .help-grid {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .site-nav #help-button {
+    display: none;
   }
 }
 

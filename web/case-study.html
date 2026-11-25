@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#080a0f" />
+    <meta name="author" content="Jim Merioles" />
+    <meta
+      name="description"
+      content="Cinnabar is a clean-room Game Boy Advance emulator in Rust. The case study: the headless core, the bus, the browser arcade, the test ROMs, and the tradeoffs."
+    />
+    <title>Cinnabar case study: A console you can read</title>
+    <link rel="canonical" href="https://jimmerioles.github.io/cinnabar-gba/case-study.html" />
+    <meta property="og:title" content="Cinnabar case study: A console you can read" />
+    <meta
+      property="og:description"
+      content="How a Game Boy Advance emulator in Rust keeps a headless core, runs in a desktop app, a terminal debugger, and a browser tab, and passes the test ROMs."
+    />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Cinnabar GBA" />
+    <meta property="og:url" content="https://jimmerioles.github.io/cinnabar-gba/case-study.html" />
+    <meta
+      property="og:image"
+      content="https://jimmerioles.github.io/cinnabar-gba/assets/banner.png"
+    />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta
+      property="og:image:alt"
+      content="The Cinnabar GBA banner: a clean-room Game Boy Advance emulator written in Rust."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cinnabar case study: A console you can read" />
+    <meta
+      name="twitter:description"
+      content="How a Game Boy Advance emulator in Rust keeps a headless core, runs in a desktop app, a terminal debugger, and a browser tab, and passes the test ROMs."
+    />
+    <meta
+      name="twitter:image"
+      content="https://jimmerioles.github.io/cinnabar-gba/assets/banner.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="The Cinnabar GBA banner: a clean-room Game Boy Advance emulator written in Rust."
+    />
+    <link rel="icon" href="./assets/icon.png" />
+    <link rel="apple-touch-icon" href="./assets/icon.png" />
+    <link rel="preload" href="./assets/case-study/arcade-celeste.webp" as="image" type="image/webp" />
+    <link rel="stylesheet" href="./case-study.css" />
+  </head>
+  <body>
+    <div class="cs-progress" aria-hidden="true"></div>
+
+    <a class="cs-skip" href="#main">Skip to the case study</a>
+
+    <header class="cs-topbar">
+      <a class="cs-brand" href="./" aria-label="Cinnabar GBA home">
+        <img src="./assets/icon.png" alt="" width="32" height="32" />
+        <span class="cs-brand__name">CINNABAR <em>GBA</em></span>
+        <span class="cs-brand__divider" aria-hidden="true"></span>
+        <span class="cs-brand__section">Case study</span>
+      </a>
+      <nav class="cs-nav" aria-label="Case study links">
+        <a class="cs-nav__link" href="./">
+          Play the arcade <span aria-hidden="true">&nearr;</span>
+        </a>
+        <a
+          class="cs-nav__link"
+          href="https://github.com/jimmerioles/cinnabar-gba"
+          rel="noreferrer"
+        >
+          GitHub <span aria-hidden="true">&nearr;</span>
+        </a>
+      </nav>
+    </header>
+
+    <main id="main" class="cs-main" tabindex="-1">
+      <article>
+        <header class="cs-hero">
+          <div class="cs-shell">
+            <p class="cs-kicker">
+              <span class="cs-kicker__dot" aria-hidden="true"></span>
+              Clean-room emulation &middot; Case study
+            </p>
+            <h1 class="cs-hero__title">
+              A console<br />
+              you can <span class="cs-accent">read.</span>
+            </h1>
+            <p class="cs-hero__lede">
+              Cinnabar is a Game Boy Advance emulator written in Rust. Its core
+              owns no window, no audio device, and no filesystem, so one machine
+              runs in a desktop app, a terminal debugger, and a browser tab. It
+              boots original demo cartridges without a Nintendo BIOS. It runs
+              the games you own at the console's 59.73 frames per second.
+            </p>
+
+            <div class="cs-hero__bottom">
+              <div class="cs-actions">
+                <a class="cs-button cs-button--primary" href="./">
+                  <span>Play the arcade</span>
+                  <span aria-hidden="true">&nearr;</span>
+                </a>
+                <a class="cs-button cs-button--ghost" href="#how-it-works">
+                  <span>Read the build notes</span>
+                  <span aria-hidden="true">&darr;</span>
+                </a>
+              </div>
+
+              <dl class="cs-facts">
+                <div>
+                  <dt>Role</dt>
+                  <dd>Design, core, and frontends</dd>
+                </div>
+                <div>
+                  <dt>Stack</dt>
+                  <dd>Rust, WebAssembly, vanilla JS</dd>
+                </div>
+                <div>
+                  <dt>Surface</dt>
+                  <dd>Desktop, terminal, browser</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>v0.5.0, November 2026</dd>
+                </div>
+              </dl>
+            </div>
+
+            <figure class="cs-figure cs-figure--hero">
+              <img
+                src="./assets/case-study/arcade-celeste.webp"
+                alt="The Cinnabar browser arcade running Celeste Classic at 60 frames per second, with the game inside a dark arcade cabinet and emulator controls underneath."
+                width="1120"
+                height="851"
+                fetchpriority="high"
+              />
+              <figcaption>
+                Celeste Classic, open-source homebrew, running in the browser
+                arcade at 60 fps. The ROM is not bundled. It renders a 128&times;128
+                playfield inside the 240&times;160 frame, drawn by WebGL2 and
+                scaled by the page.
+              </figcaption>
+            </figure>
+          </div>
+        </header>
+
+        <div class="cs-shell cs-sections">
+          <nav class="cs-contents" aria-label="Case study contents">
+            <a href="#problem-title"><span>01</span> The problem</a>
+            <a href="#what-title"><span>02</span> What it is</a>
+            <a href="#walkthrough-title"><span>03</span> The walkthrough</a>
+            <a href="#how-title"><span>04</span> How it works</a>
+            <a href="#performance-title"><span>05</span> Performance</a>
+            <a href="#verification-title"><span>06</span> Verification</a>
+            <a href="#limits-title"><span>07</span> Limits</a>
+            <a href="#next-title"><span>08</span> What is next</a>
+          </nav>
+
+          <section class="cs-section" aria-labelledby="problem-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">01</span>
+              <p class="cs-kicker">The problem</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="problem-title">
+                An emulator is easy to run and hard to open.
+              </h2>
+              <p class="cs-lede">
+                Most emulators are judged by the games they boot. That is the
+                right test. It also leaves the machine opaque: a binary around a
+                window, a BIOS you are told to find, and a frame you cannot
+                reproduce in a test.
+              </p>
+              <p>
+                A Game Boy Advance is a stack of chips sharing one bus. Emulator
+                code tends to mirror that shape, then the frontend grows into it.
+                The window, audio device, input, and filesystem become part of
+                the machine. Once they do, the core cannot run in CI, and it
+                cannot run in a tab.
+              </p>
+              <p>
+                The legal problem is just as blunt. A real GBA starts by running
+                Nintendo's BIOS. Shipping or requiring that image makes a
+                project harder to share. The way out is high-level emulation,
+                but only if the calls are implemented honestly and tested.
+              </p>
+              <p>
+                The accuracy problem is a trap. Dot-level timing is where
+                emulators disappear. Cinnabar chose compatibility over
+                perfection: implement what games hit, then let open test ROMs
+                find the sharp edges.
+              </p>
+
+              <div class="cs-compare">
+                <h3>The default shape, and this one</h3>
+                <p class="cs-compare__intro">
+                  Neither column is a criticism of other emulators. It is a
+                  description of what the boundary buys.
+                </p>
+                <table>
+                  <caption class="sr-only">
+                    A comparison of the default emulator shape and Cinnabar's
+                    headless core
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Concern</th>
+                      <th scope="col">The default shape</th>
+                      <th scope="col">Cinnabar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">Where the machine lives</th>
+                      <td data-label="The default shape">
+                        The core grows into the window.
+                      </td>
+                      <td data-label="Cinnabar">
+                        A headless <code>System</code> with no I/O.
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Firmware</th>
+                      <td data-label="The default shape">
+                        A user-supplied BIOS image, or a bundled one.
+                      </td>
+                      <td data-label="Cinnabar">
+                        BIOS calls implemented in Rust.
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Ways to run</th>
+                      <td data-label="The default shape">
+                        One frontend, usually a window.
+                      </td>
+                      <td data-label="Cinnabar">
+                        Desktop, terminal debugger, browser.
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Proof</th>
+                      <td data-label="The default shape">
+                        Boot a game and watch.
+                      </td>
+                      <td data-label="Cinnabar">
+                        Test ROMs, smoke checks, a headless benchmark.
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Sharing</th>
+                      <td data-label="The default shape">
+                        ROMs and firmware complicate distribution.
+                      </td>
+                      <td data-label="Cinnabar">
+                        No commercial ROMs, no BIOS, MIT licensed.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="what-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">02</span>
+              <p class="cs-kicker">What it is</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="what-title">One machine, three ways in.</h2>
+              <p class="cs-lede">
+                Cinnabar recreates the GBA as a CPU, a bus, and a set of
+                peripherals. <code>System::run_frame()</code> returns a
+                240&times;160 framebuffer and stereo samples. Everything else is a
+                shell around that call.
+              </p>
+              <p>
+                Because a frame is exactly 280,896 cycles and the core owns no
+                I/O, the same input produces the same frame. That is what makes
+                headless screenshots, tests, and rewind possible.
+              </p>
+              <p>
+                The browser arcade is the friendliest shell. It boots six original
+                cartridges, takes a ROM you own, and keeps saves in IndexedDB.
+                Sound runs through an AudioWorklet. Gamepads and touch work. A
+                WebGL2 shader draws the LCD or CRT grid over the frame, with a 2D
+                canvas fallback.
+              </p>
+              <p>
+                The native app is the same machine with a window, a speaker, and
+                a save file next to the ROM. The debugger is the same machine with
+                breakpoints, memory editing, PPU viewers, save states, and a
+                rewind buffer. None of them owns the emulator.
+              </p>
+
+              <div class="cs-frontends">
+                <article class="cs-frontend cs-frontend--native">
+                  <span class="cs-frontend__tag">Native</span>
+                  <h3>Desktop</h3>
+                  <p>
+                    A 240&times;160 window, keyboard and gamepad input, LCD and
+                    CRT shaders, and battery saves next to the ROM.
+                  </p>
+                  <p class="cs-frontend__meta">winit &middot; softbuffer &middot; cpal</p>
+                </article>
+                <article class="cs-frontend cs-frontend--debug">
+                  <span class="cs-frontend__tag">Inspect</span>
+                  <h3>Debugger</h3>
+                  <p>
+                    Breakpoints, step and step-frame, a memory editor, tile,
+                    palette, and OAM viewers, save states, and rewind.
+                  </p>
+                  <p class="cs-frontend__meta">Terminal first &middot; no window</p>
+                </article>
+                <article class="cs-frontend cs-frontend--browser">
+                  <span class="cs-frontend__tag">Share</span>
+                  <h3>Browser</h3>
+                  <p>
+                    Six built-in cartridges, AudioWorklet sound, IndexedDB saves,
+                    gamepad and touch controls, and WebGL2 shaders.
+                  </p>
+                  <p class="cs-frontend__meta">WebAssembly &middot; no install</p>
+                </article>
+              </div>
+
+              <div class="cs-statement">
+                <p>The core is the product.<br />The window is a detail.</p>
+              </div>
+
+              <figure class="cs-figure cs-figure--library">
+                <img
+                  src="./assets/case-study/arcade-library.webp"
+                  alt="The lower half of the Cinnabar arcade page, showing six built-in cartridges, a ROM loader, save controls, and the notes about sound and graphics."
+                  width="1440"
+                  height="920"
+                  loading="lazy"
+                />
+                <figcaption>
+                  The arcade is a full page, not a canvas demo: a cartridge
+                  library, a ROM loader, save controls, and notes about the
+                  machine.
+                </figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="walkthrough-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">03</span>
+              <p class="cs-kicker">The walkthrough</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="walkthrough-title">The arcade in sixty seconds.</h2>
+              <p class="cs-lede">
+                There is a 3:13 explainer film for the whole machine. There is
+                also a fixed route through the live arcade for anyone who wants
+                the short version: six beats, no improvisation, and something on
+                screen for every claim.
+              </p>
+
+              <div class="cs-walkthrough">
+                <a
+                  id="film"
+                  class="cs-film"
+                  href="https://github.com/user-attachments/assets/c5e93545-4d9d-4f6a-9ea1-4d5212dd9d69"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Watch the 3 minute 13 second Cinnabar explainer film (opens in a new tab)"
+                >
+                  <span class="cs-film__media">
+                    <img
+                      src="./assets/case-study/logo.webp"
+                      alt=""
+                      width="959"
+                      height="640"
+                      loading="lazy"
+                    />
+                    <span class="cs-film__play" aria-hidden="true">&#9654;</span>
+                  </span>
+                  <span class="cs-film__body">
+                    <span class="cs-film__meta">
+                      <span>Explainer film</span>
+                      <span>3:13</span>
+                    </span>
+                    <span class="cs-film__title">One frame, explained.</span>
+                    <span class="cs-film__copy">
+                      The machine, the bus, the PPU, the BIOS, and the proof,
+                      narrated over real captures.
+                    </span>
+                    <span class="cs-film__cta">
+                      Watch the film <span aria-hidden="true">&nearr;</span>
+                    </span>
+                  </span>
+                </a>
+
+                <div class="cs-shotlist">
+                  <h3 id="shot-list-title">The 60-second route</h3>
+                  <ol class="cs-shots" aria-labelledby="shot-list-title">
+                    <li>
+                      <p class="cs-shots__time">0:00 to 0:10</p>
+                      <div>
+                        <h4>Boot the logo cartridge</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>
+                              Open the arcade at 1440&times;900. The logo cartridge
+                              is already running.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              The red C draws at 60 fps. The status reads RUNNING
+                              and WEBGL2.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "This is Cinnabar. A Game Boy Advance, rebuilt in
+                              Rust, running in a tab."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                    <li>
+                      <p class="cs-shots__time">0:10 to 0:20</p>
+                      <div>
+                        <h4>Switch to Tiles &amp; sprites</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>Click the Tiles &amp; sprites chip.</dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              The test pattern draws text backgrounds, a sprite,
+                              and alpha blending.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "Every built-in cartridge is a test ROM with a
+                              picture."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                    <li>
+                      <p class="cs-shots__time">0:20 to 0:30</p>
+                      <div>
+                        <h4>Press every button</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>
+                              Open Input test. Press E, S, D, F, J, K, A, L,
+                              Enter, and Backspace, then press F3.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              Each button lights its shape. The HUD shows frame
+                              rate, audio buffer, underruns, renderer, gamepad,
+                              and scale.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "The keypad is real input. The HUD is the machine's
+                              pulse."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                    <li>
+                      <p class="cs-shots__time">0:30 to 0:42</p>
+                      <div>
+                        <h4>Play Celeste Classic</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>
+                              Load the homebrew ROM, press Start, then move and
+                              jump.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              The game runs at 59.73 fps with sound through an
+                              AudioWorklet.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "A real game, not a demo loop. The same core that
+                              ran in the test suite."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                    <li>
+                      <p class="cs-shots__time">0:42 to 0:52</p>
+                      <div>
+                        <h4>Pause, fast-forward, screenshot</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>Press F1, then F2, then F5.</dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              The pause badge appears, the frame rate climbs, and
+                              a PNG lands in the downloads.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "Pause, fast-forward, screenshot. The controls are
+                              the same machine, not a recording."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                    <li>
+                      <p class="cs-shots__time">0:52 to 1:00</p>
+                      <div>
+                        <h4>Export a save</h4>
+                        <dl>
+                          <div>
+                            <dt>Action</dt>
+                            <dd>Scroll to Saves and export the .sav file.</dd>
+                          </div>
+                          <div>
+                            <dt>On screen</dt>
+                            <dd>
+                              A standard battery save leaves the browser as a
+                              file.
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Narration</dt>
+                            <dd>
+                              "The browser can hand the save back to the desktop
+                              app. Same machine, same bytes."
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="cs-section" id="how-it-works" aria-labelledby="how-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">04</span>
+              <p class="cs-kicker">How it works</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="how-title">Four ideas hold the machine together.</h2>
+              <p class="cs-lede">
+                The architecture is small on purpose. There is no plugin system,
+                no scene graph, and no second copy of the hardware.
+              </p>
+
+              <ol class="cs-steps">
+                <li>
+                  <span class="cs-steps__number" aria-hidden="true">01</span>
+                  <div>
+                    <h3>The core is headless.</h3>
+                    <p>
+                      <code>System::run_frame()</code> owns the loop. It returns a
+                      framebuffer and stereo samples. No window, no audio device,
+                      no filesystem. That is why the same code can run in a test,
+                      a desktop app, and a browser tab.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span class="cs-steps__number" aria-hidden="true">02</span>
+                  <div>
+                    <h3>The bus is the switchboard.</h3>
+                    <p>
+                      The CPU never touches hardware directly. It asks the bus
+                      for an address, and the bus reads the top byte: 0x02 is
+                      work RAM, 0x04 is hardware, 0x08 is the cartridge. Every
+                      access goes through it.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span class="cs-steps__number" aria-hidden="true">03</span>
+                  <div>
+                    <h3>The PPU draws one scanline at a time.</h3>
+                    <p>
+                      Each line asks four backgrounds and 128 sprites for a
+                      color, then applies windows, alpha, brightness, and mosaic.
+                      After 160 visible lines and 68 VBlank lines, the frame is
+                      ready.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span class="cs-steps__number" aria-hidden="true">04</span>
+                  <div>
+                    <h3>The BIOS is a Rust function table.</h3>
+                    <p>
+                      A real GBA starts in Nintendo's firmware. Cinnabar catches
+                      the SWI instruction and implements the useful calls
+                      directly: decompress, fill, divide, wait. No copyrighted
+                      firmware ships, and cartridges still boot.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+
+              <figure class="cs-figure cs-figure--machine">
+                <div class="cs-machine" role="group" aria-label="Machine map">
+                  <span class="cs-machine__tag">System::run_frame()</span>
+                  <div class="cs-machine__top">
+                    <div class="cs-node cs-node--cpu">
+                      <span class="cs-node__tag">CPU</span>
+                      <span class="cs-node__name">ARM7TDMI</span>
+                      <span class="cs-node__detail">16.78 MHz &middot; ARM + Thumb</span>
+                    </div>
+                    <div class="cs-node cs-node--cart">
+                      <span class="cs-node__tag">Cartridge</span>
+                      <span class="cs-node__name">ROM + save</span>
+                      <span class="cs-node__detail">
+                        header &middot; SRAM &middot; Flash &middot; EEPROM
+                      </span>
+                    </div>
+                  </div>
+                  <div class="cs-machine__bus">
+                    <span class="cs-machine__bus-name">BUS</span>
+                    <span class="cs-machine__bus-copy">top byte routes every access</span>
+                    <span class="cs-machine__addresses">
+                      <span>0x02 RAM</span>
+                      <span>0x04 I/O</span>
+                      <span>0x08 ROM</span>
+                      <span>0x0E SAVE</span>
+                    </span>
+                  </div>
+                  <div class="cs-machine__bottom">
+                    <div class="cs-node">
+                      <span class="cs-node__tag">PPU</span>
+                      <span class="cs-node__name">Graphics</span>
+                      <span class="cs-node__detail">4 backgrounds &middot; 128 sprites</span>
+                    </div>
+                    <div class="cs-node">
+                      <span class="cs-node__tag">APU</span>
+                      <span class="cs-node__name">Sound</span>
+                      <span class="cs-node__detail">4 GB channels &middot; 2 DMA</span>
+                    </div>
+                    <div class="cs-node">
+                      <span class="cs-node__tag">DMA</span>
+                      <span class="cs-node__name">Bulk copy</span>
+                      <span class="cs-node__detail">4 channels &middot; HBlank + VBlank</span>
+                    </div>
+                    <div class="cs-node">
+                      <span class="cs-node__tag">Timers + IRQ</span>
+                      <span class="cs-node__name">Clock</span>
+                      <span class="cs-node__detail">4 timers &middot; cascade</span>
+                    </div>
+                  </div>
+                </div>
+                <figcaption>
+                  One bus, one frame. Every chip is a Rust struct; the bus is the
+                  switchboard that keeps them honest.
+                </figcaption>
+              </figure>
+
+              <div class="cs-code">
+                <div class="cs-code__bar">
+                  <span class="cs-code__dots" aria-hidden="true">
+                    <i></i><i></i><i></i>
+                  </span>
+                  <span>core/src/system.rs</span>
+                  <span>simplified</span>
+                </div>
+                <pre><code><span class="tok-kw">pub fn</span> <span class="tok-fn">run_frame</span>(&amp;<span class="tok-kw">mut</span> self) -&gt; <span class="tok-ty">FrameOutput</span> {
+    self.bus.ppu.frame_ready = <span class="tok-kw">false</span>;
+    <span class="tok-kw">while</span> !self.bus.ppu.frame_ready {
+        self.step();
+    }
+    <span class="tok-ty">FrameOutput</span> {
+        framebuffer: self.bus.ppu.framebuffer.clone(),
+        audio: self.bus.apu.take_samples(),
+    }
+}</code></pre>
+              </div>
+
+              <figure class="cs-figure cs-figure--ppu">
+                <img
+                  src="./assets/case-study/ppu-tiled.webp"
+                  alt="A Game Boy Advance test pattern of red, green, blue, and gray tiles with a small blended sprite near the center."
+                  width="959"
+                  height="640"
+                  loading="lazy"
+                />
+                <figcaption>
+                  Tiles &amp; sprites: text backgrounds, a sprite, and alpha
+                  blending, drawn one scanline at a time.
+                </figcaption>
+              </figure>
+
+              <p class="cs-small">
+                The guided tour, including the memory map and the frame loop, is
+                in
+                <a
+                  href="https://github.com/jimmerioles/cinnabar-gba/blob/main/docs/ARCHITECTURE.md"
+                  rel="noreferrer"
+                >
+                  docs/ARCHITECTURE.md
+                </a>.
+              </p>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="performance-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">05</span>
+              <p class="cs-kicker">Performance</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="performance-title">
+                Fast enough to stop thinking about it.
+              </h2>
+              <p class="cs-lede">
+                The headless core is not just testable. It is quick. On a release
+                build, a 300-frame Celeste Classic run finishes at 449.6 frames
+                per second, about 7.5 times the console's 59.73 Hz.
+              </p>
+
+              <dl class="cs-stats">
+                <div>
+                  <dt>Headless Celeste</dt>
+                  <dd><strong>449.6</strong><span>frames per second</span></dd>
+                </div>
+                <div>
+                  <dt>Headroom</dt>
+                  <dd><strong>7.5&times;</strong><span>over real time</span></dd>
+                </div>
+                <div>
+                  <dt>Cycle budget</dt>
+                  <dd><strong>280,896</strong><span>cycles per frame</span></dd>
+                </div>
+                <div>
+                  <dt>Console rate</dt>
+                  <dd><strong>59.73</strong><span>frames per second</span></dd>
+                </div>
+                <div>
+                  <dt>Frame</dt>
+                  <dd><strong>240&times;160</strong><span>BGR555 pixels</span></dd>
+                </div>
+                <div>
+                  <dt>Mixer</dt>
+                  <dd><strong>48 kHz</strong><span>stereo samples</span></dd>
+                </div>
+              </dl>
+
+              <div class="cs-meter">
+                <div class="cs-meter__head">
+                  <span>Headless benchmark</span>
+                  <span>Celeste Classic &middot; 300 frames &middot; one run</span>
+                </div>
+                <div class="cs-meter__track" aria-hidden="true">
+                  <div class="cs-meter__fill"></div>
+                  <div class="cs-meter__mark" style="--at: 13.3%">
+                    <span>59.73 needed</span>
+                  </div>
+                  <div class="cs-meter__right">449.6 measured</div>
+                </div>
+                <p class="cs-meter__note">
+                  One release build on the development machine, no display, no
+                  audio device. The browser is paced by
+                  <code>requestAnimationFrame</code>, not this number.
+                </p>
+              </div>
+
+              <p>
+                The 7.5&times; is not a promise for the browser. The arcade is capped
+                at 59.73 Hz, with up to four catch-up frames, so a slow tab drops
+                frames rather than speeding up. The number that matters there is
+                the one in the HUD: 58 to 60 fps, a single-digit audio buffer,
+                and a low underrun count during normal play.
+              </p>
+
+              <figure class="cs-figure cs-figure--hud">
+                <img
+                  src="./assets/case-study/arcade-hud.webp"
+                  alt="The Cinnabar browser arcade running Celeste, with the HUD open showing 58 frames per second, a 9 millisecond audio buffer, one underrun, WebGL2, no gamepad, and a 4x scale."
+                  width="1120"
+                  height="922"
+                  loading="lazy"
+                />
+                <figcaption>
+                  The HUD is the browser's instrument panel: frame rate, audio
+                  buffer, underruns, renderer, gamepad, and scale.
+                </figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="verification-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">06</span>
+              <p class="cs-kicker">Verification</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="verification-title">The test ROMs ask the questions.</h2>
+              <p class="cs-lede">
+                An emulator is a pile of claims. Cinnabar checks them with open
+                test suites and a headless boot of every bundled cartridge.
+              </p>
+
+              <div class="cs-verify">
+                <div>
+                  <h3>Test coverage</h3>
+                  <table class="cs-table">
+                    <caption class="sr-only">
+                      Emulator test suites and their current status
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Area</th>
+                        <th scope="col">Suite</th>
+                        <th scope="col">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row">ARM instruction set</th>
+                        <td data-label="Suite"><code>gba-tests/arm</code></td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Thumb instruction set</th>
+                        <td data-label="Suite"><code>gba-tests/thumb</code></td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Memory map and mirrors</th>
+                        <td data-label="Suite"><code>gba-tests/memory</code></td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">SRAM, Flash, no backup</th>
+                        <td data-label="Suite"><code>gba-tests/save</code></td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">PPU modes 0 to 5</th>
+                        <td data-label="Suite"><code>gba-tests/ppu</code> + built-ins</td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">BIOS HLE</th>
+                        <td data-label="Suite">SWI unit and integration tests</td>
+                        <td data-label="Status"><span class="cs-pass">passing</span></td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Browser arcade</th>
+                        <td data-label="Suite">WASM, AudioWorklet, IndexedDB, WebGL</td>
+                        <td data-label="Status"><span class="cs-manual">manual</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <figure class="cs-figure cs-figure--tests">
+                  <img
+                    src="./assets/case-study/tests-arm.webp"
+                    alt="A Game Boy Advance test ROM screen displaying the words All tests passed in pixel text."
+                    width="720"
+                    height="480"
+                    loading="lazy"
+                  />
+                  <figcaption>
+                    The ARM suite from <code>gba-tests</code>. Passing is a
+                    picture, not a promise.
+                  </figcaption>
+                </figure>
+              </div>
+
+              <h3>Verified commercial titles</h3>
+              <table class="cs-table cs-table--wide">
+                <caption class="sr-only">
+                  Commercial Game Boy Advance titles verified against Cinnabar
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Title</th>
+                    <th scope="col">Region</th>
+                    <th scope="col">Save type</th>
+                    <th scope="col">Coverage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">The Legend of Zelda: The Minish Cap</th>
+                    <td data-label="Region">Europe (BZMP)</td>
+                    <td data-label="Save type">EEPROM 8K</td>
+                    <td data-label="Coverage">boot, intro, file select, save, reload, gameplay, audio</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Pok&eacute;mon FireRed Version</th>
+                    <td data-label="Region">US (BPRE)</td>
+                    <td data-label="Save type">Flash 128K</td>
+                    <td data-label="Coverage">boot, flash-ID, New Game, save, reload, gameplay, audio</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="cs-small">
+                Checked against legally dumped images. Commercial ROMs are not
+                part of the repository. The full matrix is in
+                <a
+                  href="https://github.com/jimmerioles/cinnabar-gba/blob/main/docs/COMPATIBILITY.md"
+                  rel="noreferrer"
+                >
+                  docs/COMPATIBILITY.md
+                </a>.
+              </p>
+
+              <div class="cs-commands">
+                <p class="cs-commands__label">Run it yourself</p>
+                <pre><code><span class="tok-com"># unit and integration tests</span>
+cargo test --workspace
+
+<span class="tok-com"># open test suites, PPU checks, and Celeste</span>
+./tools/validate.sh
+
+<span class="tok-com"># boot every bundled cartridge headlessly</span>
+./tools/smoke.sh
+
+<span class="tok-com"># manual one-hour emulated soak</span>
+./tools/soak.sh /path/to/game.gba 216000</code></pre>
+              </div>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="limits-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">07</span>
+              <p class="cs-kicker">Limits</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="limits-title">What this does not claim.</h2>
+              <p class="cs-lede">
+                A demo is more convincing when it says where the edges are.
+                These are the current ones.
+              </p>
+
+              <div class="cs-cols">
+                <ul class="cs-list cs-list--tight">
+                  <li>
+                    PPU timing is scanline-based. Dot-level effects and exact
+                    HBlank or DMA timing are still approximate.
+                  </li>
+                  <li>
+                    The BIOS is high-level emulation, not a cycle-accurate
+                    firmware. The <code>bios</code> test ROM is unsupported by
+                    design.
+                  </li>
+                  <li>
+                    Audio DMA refill timing is approximate, high square and noise
+                    frequencies alias at 48 kHz, and the exact SOUNDBIAS PWM
+                    output stage is not modelled.
+                  </li>
+                  <li>There is no link cable and no netplay yet.</li>
+                  <li>
+                    Commercial compatibility is a work in progress. Two retail
+                    titles are verified; an automated compatibility dashboard is
+                    not built.
+                  </li>
+                  <li>
+                    The browser needs WebGL2 and AudioWorklet for the full
+                    arcade. It falls back to a 2D canvas and silent playback when
+                    they are missing.
+                  </li>
+                  <li>
+                    No commercial ROMs and no BIOS are bundled. You supply a
+                    legally dumped game.
+                  </li>
+                </ul>
+
+                <figure class="cs-figure cs-figure--mobile">
+                  <img
+                    src="./assets/case-study/arcade-mobile.webp"
+                    alt="The Cinnabar browser arcade at phone width, with the logo cartridge, touch D-pad, face buttons, and system buttons."
+                    width="720"
+                    height="1211"
+                    loading="lazy"
+                  />
+                  <figcaption>
+                    The arcade at 390px. The layout stacks, touch controls
+                    appear, and the same machine runs.
+                  </figcaption>
+                </figure>
+              </div>
+            </div>
+          </section>
+
+          <section class="cs-section" aria-labelledby="next-title">
+            <div class="cs-section__aside">
+              <span class="cs-section__number">08</span>
+              <p class="cs-kicker">What is next</p>
+            </div>
+            <div class="cs-section__body">
+              <h2 id="next-title">
+                The next version should be harder to impress.
+              </h2>
+              <p class="cs-lede">
+                The interaction is proven. The remaining work is accuracy, reach,
+                and more evidence.
+              </p>
+
+              <ol class="cs-next">
+                <li>
+                  <span aria-hidden="true">01</span>
+                  <div>
+                    <h3>Dot-level PPU effects</h3>
+                    <p>
+                      Add the timing that games use for raster tricks, without
+                      giving up the scanline fast path.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">02</span>
+                  <div>
+                    <h3>Exact SOUNDBIAS PWM</h3>
+                    <p>
+                      Model the output stage, not just the amplitude resolution,
+                      and publish a mixing test beside it.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">03</span>
+                  <div>
+                    <h3>A compatibility dashboard</h3>
+                    <p>
+                      Run the same smoke and soak scripts across a library and
+                      publish pass, fail, and known issues.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">04</span>
+                  <div>
+                    <h3>One-hour commercial soak</h3>
+                    <p>
+                      Turn the manual release check into a repeatable gate with a
+                      saved frame and a log.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">05</span>
+                  <div>
+                    <h3>Link cable and netplay</h3>
+                    <p>
+                      The moonshot. Two emulators, one cable, no desync. It stays
+                      after v1.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span aria-hidden="true">06</span>
+                  <div>
+                    <h3>Real BIOS support</h3>
+                    <p>
+                      Optional and user-supplied. The HLE path stays the default,
+                      and the firmware never enters the repo.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <div class="cs-end">
+            <p class="cs-kicker">The machine is running</p>
+            <h2>Try it in the tab.</h2>
+            <p>
+              Boot an original cartridge, drop in a ROM you own, or read the
+              source and build the desktop app. No install, no BIOS, no uploads.
+            </p>
+            <div class="cs-actions">
+              <a class="cs-button cs-button--primary" href="./">
+                <span>Play the arcade</span>
+                <span aria-hidden="true">&nearr;</span>
+              </a>
+              <a
+                class="cs-button cs-button--ghost"
+                href="https://github.com/jimmerioles/cinnabar-gba"
+                rel="noreferrer"
+              >
+                <span>Read the source</span>
+                <span aria-hidden="true">&nearr;</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <footer class="cs-footer">
+      <div class="cs-shell cs-footer__inner">
+        <div>
+          <p class="cs-footer__mark">CINNABAR <em>GBA</em></p>
+          <p class="cs-footer__note">
+            A clean-room Game Boy Advance emulator. Built with Rust,
+            WebAssembly, and vanilla JavaScript. Design and code by
+            <a href="https://github.com/jimmerioles" rel="noreferrer">Jim Merioles</a>. Game Boy
+            Advance and the game titles named here are trademarks of their
+            respective owners. This project is independent and not affiliated
+            with Nintendo.
+          </p>
+        </div>
+        <nav class="cs-footer__links" aria-label="Case study footer">
+          <a href="./">Play the arcade</a>
+          <a href="https://github.com/jimmerioles/cinnabar-gba" rel="noreferrer">Source</a>
+          <a
+            href="https://github.com/jimmerioles/cinnabar-gba/blob/main/LICENSE"
+            rel="noreferrer"
+          >
+            MIT license
+          </a>
+          <a href="#film">Watch the film</a>
+          <a href="#main">Back to top</a>
+        </nav>
+      </div>
+      <p class="cs-shell cs-footer__fine">
+        Case study written November 2026. Facts checked against v0.5.0.
+      </p>
+    </footer>
+  </body>
+</html>

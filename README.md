@@ -2,13 +2,13 @@
 
 A clean-room Game Boy Advance emulator in Rust, with a native frontend and a browser arcade.
 
-[Play the browser arcade](https://jimmerioles.github.io/cinnabar-gba/) · no install, no BIOS, and no ROM required for the built-in demos.
+[Play the browser arcade](https://jimmerioles.github.io/cinnabar-gba/) · [Read the case study](https://jimmerioles.github.io/cinnabar-gba/case-study.html) · no install, no BIOS, and no ROM required for the built-in demos.
 
 https://github.com/user-attachments/assets/c5e93545-4d9d-4f6a-9ea1-4d5212dd9d69
 
 Cinnabar runs real GBA ROMs on a deterministic, headless core and gives that core three ways to run: a desktop window, a terminal debugger, and a WebAssembly arcade. It implements ARM and Thumb, the scanline PPU, PSG and DMA audio, and SRAM/Flash/EEPROM saves. Common BIOS calls are implemented in Rust, so no Nintendo BIOS image is required.
 
-It is for people who want an emulator they can read, test, and extend. The core owns no window, audio device, or filesystem, which is why the same code runs in CI, on the desktop, and in a browser tab.
+It is for people who want an emulator they can read, test, and extend. The core owns no window, audio device, or filesystem, which is why the same code runs in CI, on the desktop, and in a browser tab. The [case study](https://jimmerioles.github.io/cinnabar-gba/case-study.html) goes deeper on the architecture, the browser arcade, the test strategy, and the tradeoffs.
 
 ## What you get
 
